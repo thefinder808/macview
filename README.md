@@ -44,8 +44,13 @@ image in that folder, the way Preview never quite let you.
 ## Install
 
 Download the latest `MacView-x.y.z.dmg` from Releases, open it, and drag MacView
-to Applications. To make it your default image viewer, right-click an image in
-Finder → **Open With → Other… → MacView**, check "Always Open With".
+to Applications.
+
+To make it your default image viewer, either:
+- open **MacView → Settings (⌘,) → "Set MacView as the Default Image Viewer"**, or
+- right-click an image in Finder → **Open With → Other… → MacView**, check "Always Open With".
+
+(Install to /Applications first so the association points at a stable location.)
 
 ## Build from source
 
