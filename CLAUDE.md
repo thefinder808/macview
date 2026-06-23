@@ -34,6 +34,22 @@ third-party dependencies**. See `docs/ARCHITECTURE.md` for the full layout.
   (so the delete-confirm dialog keeps its own key handling). See
   `Sources/MacView/Views/ImageCanvas.swift` (`keyMonitor`).
 
+- **Bare SwiftUI controls over the AppKit canvas don't receive clicks.** An
+  embedded `NSView` (the `NSScrollView` canvas) wins AppKit hit-testing against
+  SwiftUI shapes drawn over it, regardless of ZStack z-order. Symptom: clicking
+  the nav chevrons just toggled the chrome (the click fell through to the canvas).
+  The tell: the **toolbar and filmstrip worked** because their container-level
+  `.ultraThinMaterial` background materializes a real hit-testable `NSView`;
+  bare chevrons had none. `.background(ImageCanvas)` instead of a ZStack sibling
+  did NOT work (the representable renders blank as a background layer). The robust
+  fix: don't rely on SwiftUI hit-testing for controls over the canvas — the canvas
+  reliably gets those clicks, so it computes a left/center/right **`ClickZone`**
+  from the click x and reports it; `ViewerModel.handleClick` navigates on edge
+  clicks (chrome visible) or toggles chrome. The chevrons are visual-only
+  (`allowsHitTesting(false)`). See `ImageCanvas.swift` (`zone(for:)`) and
+  `NavChevrons.swift`. Material-backed overlays (toolbar/filmstrip/info) keep
+  handling their own clicks normally.
+
 - **Keep high-frequency publishers off the App scene, or menus vanish.** The live
   zoom percent changes on every pinch/scroll tick. It lives on `CanvasController`
   (held by ContentView as `@ObservedObject`), and the App holds `CanvasController`

@@ -133,6 +133,25 @@ final class ViewerModel: ObservableObject {
     // MARK: Chrome toggles
 
     func toggleChrome() { chromeVisible.toggle() }
+
+    /// Policy for a click on the image canvas. While the chrome is hidden, any
+    /// click just reveals it (the chevrons aren't shown to aim at). While it's
+    /// visible, an edge click navigates (matching the on-screen chevron there)
+    /// and a center click hides the chrome again.
+    func handleClick(_ zone: ClickZone) {
+        guard chromeVisible else {
+            chromeVisible = true   // any click while hidden just reveals the chrome
+            return
+        }
+        switch zone {
+        case .left:
+            if hasPrevious { previous() } else { chromeVisible = false }
+        case .right:
+            if hasNext { next() } else { chromeVisible = false }
+        case .center:
+            chromeVisible = false
+        }
+    }
     func toggleFilmstrip() { filmstripVisible.toggle() }
     func toggleInfo() {
         infoVisible.toggle()

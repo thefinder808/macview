@@ -1,6 +1,12 @@
 import SwiftUI
 import AppKit
 
+/// Which horizontal third of the canvas a click landed in. The canvas reliably
+/// receives image clicks (bare SwiftUI overlays lose hit-testing to an embedded
+/// NSView), so edge-click navigation is handled here deterministically rather
+/// than via tappable chevron buttons that the canvas would swallow anyway.
+enum ClickZone { case left, center, right }
+
 /// Lets SwiftUI chrome (toolbar buttons, menu items) drive the AppKit canvas's
 /// zoom without owning it. The canvas registers itself here on creation.
 final class CanvasController: ObservableObject {
@@ -31,7 +37,7 @@ struct ImageCanvas: NSViewRepresentable {
         let view = ZoomableImageScrollView()
         controller.view = view
         view.onZoomChange = { [weak controller] pct in controller?.zoomPercent = pct }
-        view.onSingleClick = { [weak model] in model?.toggleChrome() }
+        view.onClick = { [weak model] zone in model?.handleClick(zone) }
         view.onPrevious = { [weak model] in model?.previous() }
         view.onNext = { [weak model] in model?.next() }
         view.onToggleChrome = { [weak model] in model?.toggleChrome() }
@@ -77,7 +83,7 @@ final class ZoomableImageScrollView: NSScrollView {
 
     // Callbacks into the view model (all fire on the main thread).
     var onZoomChange: ((Int) -> Void)?
-    var onSingleClick: (() -> Void)?
+    var onClick: ((ClickZone) -> Void)?
     var onPrevious: (() -> Void)?
     var onNext: (() -> Void)?
     var onToggleChrome: (() -> Void)?
@@ -288,13 +294,25 @@ final class ZoomableImageScrollView: NSScrollView {
         if didDrag { return }
         switch event.clickCount {
         case 1:
-            onSingleClick?()
+            onClick?(zone(for: event))
         case 2:
-            // The first click of a double already toggled chrome; undo it, then zoom.
-            onSingleClick?()
+            // The first click of a double already ran a center action (toggle
+            // chrome); undo it for center clicks, then zoom. Edge double-clicks
+            // just navigate once (from the first click) and then zoom.
+            if zone(for: event) == .center { onClick?(.center) }
             toggleFitActual(at: imageView.convert(event.locationInWindow, from: nil))
         default:
             break
         }
+    }
+
+    /// The horizontal third the click landed in, with a generous edge band so the
+    /// visual chevrons have a forgiving hit target.
+    private func zone(for event: NSEvent) -> ClickZone {
+        let x = convert(event.locationInWindow, from: nil).x
+        let band: CGFloat = 96
+        if x < band { return .left }
+        if x > bounds.width - band { return .right }
+        return .center
     }
 }
