@@ -96,7 +96,7 @@ final class ZoomableImageScrollView: NSScrollView {
     private var didDrag = false
     private var keyMonitor: Any?
     private var swipeAccumX: CGFloat = 0
-    private var lastSwipeNav = Date.distantPast
+    private var swipeNavigated = false
     private var lastScrollTime = Date.distantPast
 
     init() {
@@ -268,19 +268,31 @@ final class ZoomableImageScrollView: NSScrollView {
         let displayedWidth = (documentView?.frame.width ?? 0) * magnification
         let canPanHorizontally = displayedWidth > bounds.width + 1
         if !canPanHorizontally, abs(dx) > abs(dy), abs(dx) > 0.1 {
+            // Ignore the momentum tail that glides after a trackpad swipe lifts
+            // off — accumulating it would page through several images for a
+            // second or two after the finger leaves the pad.
+            if event.momentumPhase != [] { return }
+
             let now = Date()
-            // Start a fresh accumulation on a trackpad gesture boundary OR after a
-            // pause (line-based scrolls — Magic Mouse, etc. — carry no phase info).
-            if event.phase.contains(.began) || now.timeIntervalSince(lastScrollTime) > 0.18 {
+            let hasPhase = event.phase != []
+            // Start a fresh gesture when a trackpad swipe begins, or — for
+            // phase-less line scrolls (mouse wheel) — after a pause.
+            if event.phase.contains(.began) || (!hasPhase && now.timeIntervalSince(lastScrollTime) > 0.18) {
                 swipeAccumX = 0
+                swipeNavigated = false
             }
             lastScrollTime = now
             swipeAccumX += dx
-            if abs(swipeAccumX) >= 50, now.timeIntervalSince(lastSwipeNav) > 0.35 {
-                lastSwipeNav = now
-                // Swipe left (deltaX > 0 with natural scrolling) → next image.
-                if swipeAccumX > 0 { onNext?() } else { onPrevious?() }
+
+            // At most one page-turn per swipe. Direction matches the macOS Spaces
+            // gesture — a left swipe moves "rightward" to the next image.
+            if !swipeNavigated, abs(swipeAccumX) >= 50 {
+                swipeNavigated = true
+                if swipeAccumX > 0 { onPrevious?() } else { onNext?() }
+            }
+            if event.phase.contains(.ended) || event.phase.contains(.cancelled) {
                 swipeAccumX = 0
+                swipeNavigated = false
             }
             return
         }
