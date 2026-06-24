@@ -35,8 +35,9 @@ struct ContentView: View {
                 }
             }
 
-            // Info overlay, top-trailing under the toolbar.
-            if model.infoVisible, let info = model.info {
+            // Info overlay, top-trailing under the toolbar. Part of the chrome —
+            // hidden when the chrome is, so clicking away dismisses it too.
+            if model.chromeVisible, model.infoVisible, let info = model.info {
                 VStack {
                     HStack {
                         Spacer()
