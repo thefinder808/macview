@@ -12,6 +12,8 @@ image in that folder, the way Preview never quite let you.
 
 - **Folder as album** — open one image, page through the whole folder in Finder's
   natural (numeric-aware) order. Stops at the ends.
+- **Open by drag-and-drop** — drop an image onto the window (or the app icon) to
+  start paging its folder; or ⌘O / "Open With".
 - **Fit-to-window** on open, never upscaling small images past 100%.
 - **Fast zoom & pan** — ⌘+ / ⌘−, trackpad pinch, ⌘-scroll, double-click to toggle
   fit ⇄ 100%, drag to pan. Live zoom-percent readout.
@@ -89,7 +91,9 @@ Uses the shared `traceview-notary` keychain profile. See `CLAUDE.md` for details
 
 SwiftUI owns layout, state, and chrome; AppKit (an `NSScrollView` with
 magnification) owns the image canvas for efficient zoom/pan and large-image
-handling. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+handling. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the layer map and
+design decisions, [CLAUDE.md](CLAUDE.md) for conventions and hard-won gotchas, and
+[CHANGELOG.md](CHANGELOG.md) for version history.
 
 ## Support
 

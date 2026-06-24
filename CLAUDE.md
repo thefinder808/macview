@@ -6,7 +6,7 @@ third-party dependencies**. See `docs/ARCHITECTURE.md` for the full layout.
 
 ## Conventions (match the fleet: macpad / MacPerf / TraceView)
 
-- **SPM, no `.xcodeproj`.** `swift build`; `./build.sh {run|app|open|release|install|dmg|notarize|clean}`.
+- **SPM, no `.xcodeproj`.** `swift build`; `./build.sh {build|run|app|open|release|install|dmg|notarize|clean}`.
 - **No xcassets.** Colors via `Color(hex:)` / `Palette` (`Utilities/Color+Hex.swift`).
 - **Bundle id** `com.macview.app`; binary/product `MacView`.
 - **Icon** is generated: `tools/make_icon.py` (Pillow) writes `Resources/AppIcon.iconset`
@@ -30,9 +30,9 @@ third-party dependencies**. See `docs/ARCHITECTURE.md` for the full layout.
   *mouse* events fine (hit-testing, independent of first responder). That
   mouse-works/keys-don't split is the diagnostic. Fix: `viewDidMoveToWindow`
   installs `NSEvent.addLocalMonitorForEvents(matching: .keyDown)` that routes
-  ←/→/Space/⌫/Esc while our window `isKeyWindow` and `attachedSheet == nil`
-  (so the delete-confirm dialog keeps its own key handling). See
-  `Sources/MacView/Views/ImageCanvas.swift` (`keyMonitor`).
+  ←/→/Space/⌫ (and Esc *only* to leave fullscreen — passed through otherwise) while
+  our window `isKeyWindow` and `attachedSheet == nil` (so the delete-confirm dialog
+  keeps its own key handling). See `Sources/MacView/Views/ImageCanvas.swift` (`keyMonitor`).
 
 - **Bare SwiftUI controls over the AppKit canvas don't receive clicks.** An
   embedded `NSView` (the `NSScrollView` canvas) wins AppKit hit-testing against
@@ -49,6 +49,24 @@ third-party dependencies**. See `docs/ARCHITECTURE.md` for the full layout.
   (`allowsHitTesting(false)`). See `ImageCanvas.swift` (`zone(for:)`) and
   `NavChevrons.swift`. Material-backed overlays (toolbar/filmstrip/info) keep
   handling their own clicks normally.
+
+- **Two-finger swipe paging has four traps (`ImageCanvas.swift` `scrollWheel`).**
+  This is the third canvas-owned navigation path (alongside the key monitor and
+  `ClickZone`), wiring `onPrevious`/`onNext`. (1) **Drop the momentum tail** —
+  `if event.momentumPhase != [] { return }` — or the inertial glide after the
+  finger lifts pages through several images for a second or two (this was the live
+  bug). (2) **Only page when the image can't pan horizontally**
+  (`displayedWidth > bounds.width + 1`), else a zoomed image should pan instead.
+  (3) **One page-turn per gesture** — a `swipeNavigated` flag + a 50pt accumulated
+  `swipeAccumX` threshold. (4) **Direction matches the macOS Spaces gesture** — a
+  left swipe advances to the *next* image; in code that's `swipeAccumX > 0 →
+  onPrevious`, `< 0 → onNext` (the sign reflects natural-scrolling `deltaX`). If a
+  user reports it reversed, that one comparison is the flip. Phase-less line scrolls
+  (mouse wheel) start a fresh gesture after a 0.18s pause.
+
+- **Don't move ←/→/⌫ onto menu-item `.keyboardShortcut`s.** They're handled by the
+  key monitor on purpose: a bare-arrow key equivalent on a menu item flashes the
+  menu-bar title on every press, which is miserable when arrowing through photos.
 
 - **Keep high-frequency publishers off the App scene, or menus vanish.** The live
   zoom percent changes on every pinch/scroll tick. It lives on `CanvasController`

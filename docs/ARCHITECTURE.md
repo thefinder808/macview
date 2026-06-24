@@ -9,11 +9,11 @@ large-image handling matter.
 
 ```
 App/        MacViewApp (@main, Window + menu commands), AppDelegate,
-            SettingsManager, WindowAccessor (dark window chrome)
+            SettingsManager, WindowAccessor (dark chrome + fullscreen + frame autosave)
 Models/     ImageItem (URL wrapper), ImageInfo (overlay metadata)
 ViewModels/ ViewerModel — the single source of truth for the session
-Services/   FolderScanner, ImageLoader (actor), Thumbnailer (actor),
-            MetadataReader, FileActions (trash)
+Services/   FolderScanner, ImageLoader (actor), Thumbnailer (actor), MetadataReader,
+            FileActions (trash), DefaultViewer (register as default image viewer)
 Views/      ContentView (ZStack), ImageCanvas (NSViewRepresentable + canvas),
             ViewerToolbar, Filmstrip, InfoOverlay, NavChevrons, SettingsView
 Utilities/  Color+Hex / Palette, NSImage+Rotation
@@ -30,6 +30,10 @@ Utilities/  Color+Hex / Palette, NSImage+Rotation
 4. `ContentView` layers the AppKit canvas under SwiftUI chrome in a `ZStack`.
 5. The canvas (`ZoomableImageScrollView`) reports its zoom percentage back to the
    `CanvasController`, which the toolbar observes.
+6. Navigation reaches `ViewerModel` from four surfaces: the canvas key monitor
+   (←/→), edge clicks resolved to a `ClickZone` (`handleClick`), a two-finger
+   horizontal swipe (canvas `scrollWheel`), and filmstrip tap-to-jump. The on-screen
+   chevrons are visual-only — see the ClickZone decision below.
 
 ## Key design decisions
 
@@ -48,7 +52,33 @@ Utilities/  Color+Hex / Palette, NSImage+Rotation
   view keeps first-responder status, so a `keyDown` override on the AppKit canvas
   never fires (the view still gets *mouse* events via hit-testing — that mismatch
   is the tell). `viewDidMoveToWindow` installs an `NSEvent.addLocalMonitorForEvents`
-  that routes ←/→/Space/⌫/Esc while our window is key and no sheet is attached.
+  that routes ←/→/Space/⌫ (Esc only to exit fullscreen) while our window is key and
+  no sheet is attached.
+
+- **Edge-click navigation via `ClickZone`, not chevron buttons.** A bare SwiftUI
+  control over the embedded `NSView` loses AppKit hit-testing, so chevron *buttons*
+  would never get the click. Instead the canvas — which reliably receives the click —
+  computes a left/center/right `ClickZone` (96pt edge band) and reports it via
+  `onClick`; `ViewerModel.handleClick` navigates on an edge click (when chrome is
+  visible) or toggles chrome on a center click. The chevrons are visual-only
+  (`allowsHitTesting(false)`). Material-backed overlays (toolbar/filmstrip) keep
+  their own clicks because their `.ultraThinMaterial` backing is a real NSView.
+
+- **Two-finger swipe paging.** Horizontal trackpad scroll in the canvas
+  `scrollWheel` pages between images, but only when the image can't pan horizontally
+  (a zoomed image pans instead). It drops the post-lift momentum tail
+  (`event.momentumPhase`), turns at most one page per gesture (accumulated-Δx
+  threshold), and matches the macOS Spaces direction (left swipe → next).
+
+- **Window state & fullscreen live in `WindowAccessor`.** Beyond the dark chrome, it
+  re-inserts `.fullScreenPrimary` into `collectionBehavior` (which `.hiddenTitleBar`
+  drops) and sets `setFrameAutosaveName`, so size/position persist across launches.
+
+- **File actions.** Copy (⌘C) writes the displayed `NSImage` + file URL to the
+  pasteboard; Reveal in Finder uses `NSWorkspace.activateFileViewerSelecting`; Share
+  is a SwiftUI `ShareLink` on the toolbar; and the Settings pane's "Set as Default
+  Image Viewer" calls `DefaultViewer.makeDefault` (per-UTI `NSWorkspace`
+  registration). `FileActions` itself holds only the destructive `trash`.
 
 - **Live zoom percent lives on `CanvasController` (ContentView scope), not the
   ViewModel (App scope).** It changes on every pinch tick; an App-scoped publisher
