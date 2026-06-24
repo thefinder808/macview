@@ -292,14 +292,22 @@ final class ZoomableImageScrollView: NSScrollView {
     override func mouseUp(with event: NSEvent) {
         defer { lastDragPoint = nil }
         if didDrag { return }
+
+        let z = zone(for: event)
+        if z != .center {
+            // Edge: every click navigates, including rapid clicks (which macOS
+            // reports as double-clicks). Never zoom here — that's what made a
+            // fast second arrow-click jump to 100% instead of advancing.
+            onClick?(z)
+            return
+        }
+
+        // Center: single click toggles chrome; double click toggles fit ⇄ 100%.
         switch event.clickCount {
         case 1:
-            onClick?(zone(for: event))
+            onClick?(.center)
         case 2:
-            // The first click of a double already ran a center action (toggle
-            // chrome); undo it for center clicks, then zoom. Edge double-clicks
-            // just navigate once (from the first click) and then zoom.
-            if zone(for: event) == .center { onClick?(.center) }
+            onClick?(.center)   // undo the chrome toggle the first click ran
             toggleFitActual(at: imageView.convert(event.locationInWindow, from: nil))
         default:
             break
