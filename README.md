@@ -18,9 +18,12 @@ image in that folder, the way Preview never quite let you.
 - **Click to hide chrome** — one click on the image hides the toolbar, chevrons,
   and filmstrip for a distraction-free view; click again to bring them back.
 - **Bottom filmstrip** of folder thumbnails; click any to jump.
+- **Two-finger swipe** left/right to page between images.
 - **Rotate** left/right (non-destructive — never rewrites your file).
 - **Delete to Trash** with a confirm prompt, then auto-advance to the next image.
+- **Copy** (⌘C), **Reveal in Finder** (⌘⇧R), and a **Share** button (AirDrop, Messages, Mail, Add to Photos, …).
 - **Info overlay** — dimensions, file size, type, and basic EXIF (⌘I).
+- **Remembers** its window size and position across launches.
 - **Broad format support** via macOS ImageIO: JPEG, PNG, GIF (animated plays
   inline), TIFF, BMP, HEIC/HEIF, WebP, AVIF, and camera RAW.
 - **Sleek dark** chrome with a hidden title bar; fullscreen support.
@@ -38,6 +41,8 @@ image in that folder, the way Preview never quite let you.
 | Toggle fit ⇄ 100% | double-click |
 | Rotate left / right | ⌘L / ⌘R |
 | Info overlay | ⌘I |
+| Copy image | ⌘C |
+| Reveal in Finder | ⌘⇧R |
 | Move to Trash | ⌫ |
 | Full screen | ⌃⌘F (or the toolbar button; Esc exits) |
 
