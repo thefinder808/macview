@@ -36,6 +36,16 @@ struct ViewerToolbar: View {
 
             divider
             icon("info.circle", "Info (⌘I)", active: model.infoVisible) { model.toggleInfo() }
+            if let url = model.current {
+                ShareLink(item: url) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 14, weight: .medium))
+                        .frame(width: 26, height: 26)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Share")
+            }
             icon("trash", "Move to Trash (⌫)") { model.requestDelete() }.disabled(model.isEmpty)
             icon("arrow.up.left.and.arrow.down.right", "Full Screen (⌃⌘F)") { toggleFullScreen() }
         }

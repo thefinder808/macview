@@ -25,6 +25,15 @@ struct MacViewApp: App {
             CommandGroup(replacing: .newItem) {
                 Button("Open…") { model.openWithPanel() }
                     .keyboardShortcut("o")
+                Button("Reveal in Finder") { model.revealInFinder() }
+                    .keyboardShortcut("r", modifiers: [.command, .shift])
+                    .disabled(model.isEmpty)
+            }
+
+            CommandGroup(replacing: .pasteboard) {
+                Button("Copy") { model.copyToClipboard() }
+                    .keyboardShortcut("c")
+                    .disabled(model.isEmpty)
             }
 
             CommandGroup(after: .toolbar) {

@@ -97,6 +97,26 @@ final class ViewerModel: ObservableObject {
     func rotateLeft() { rotation = normalize(rotation - 90); updateDisplayImage() }
     func rotateRight() { rotation = normalize(rotation + 90); updateDisplayImage() }
 
+    // MARK: File actions
+
+    /// Copy the current image (as shown, including rotation) plus its file URL to
+    /// the pasteboard, so it can be pasted as an image or as a file.
+    func copyToClipboard() {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        var items: [NSPasteboardWriting] = []
+        if let image = displayImage { items.append(image) }
+        if let url = current { items.append(url as NSURL) }
+        guard !items.isEmpty else { return }
+        pasteboard.writeObjects(items)
+    }
+
+    /// Reveal the current file in Finder.
+    func revealInFinder() {
+        guard let url = current else { return }
+        NSWorkspace.shared.activateFileViewerSelecting([url])
+    }
+
     // MARK: Delete
 
     /// Either trash immediately or raise the confirmation, per the preference.

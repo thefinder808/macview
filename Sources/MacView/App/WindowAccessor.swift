@@ -28,5 +28,9 @@ struct WindowAccessor: NSViewRepresentable {
         window.backgroundColor = NSColor(red: 0x10 / 255, green: 0x10 / 255, blue: 0x12 / 255, alpha: 1)
         window.appearance = NSAppearance(named: .darkAqua)
         window.title = title.isEmpty ? "MacView" : title
+        // Persist & restore the window's size/position across launches.
+        if window.frameAutosaveName.isEmpty {
+            window.setFrameAutosaveName("MacViewMainWindow")
+        }
     }
 }

@@ -95,6 +95,9 @@ final class ZoomableImageScrollView: NSScrollView {
     private var lastDragPoint: NSPoint?
     private var didDrag = false
     private var keyMonitor: Any?
+    private var swipeAccumX: CGFloat = 0
+    private var lastSwipeNav = Date.distantPast
+    private var lastScrollTime = Date.distantPast
 
     init() {
         super.init(frame: .zero)
@@ -250,14 +253,39 @@ final class ZoomableImageScrollView: NSScrollView {
     }
 
     override func scrollWheel(with event: NSEvent) {
-        // Cmd-scroll always zooms (anchored at the cursor); plain scroll pans.
+        // Cmd-scroll always zooms (anchored at the cursor).
         if event.modifierFlags.contains(.command) {
             let delta = event.hasPreciseScrollingDeltas ? event.scrollingDeltaY : event.deltaY
             guard delta != 0 else { return }
             zoomBy(1 + delta * 0.01, centeredAt: imageView.convert(event.locationInWindow, from: nil))
-        } else {
-            super.scrollWheel(with: event)
+            return
         }
+
+        // Two-finger horizontal swipe pages between images — but only when the
+        // image can't be panned horizontally (otherwise horizontal scroll pans).
+        let dx = event.scrollingDeltaX
+        let dy = event.scrollingDeltaY
+        let displayedWidth = (documentView?.frame.width ?? 0) * magnification
+        let canPanHorizontally = displayedWidth > bounds.width + 1
+        if !canPanHorizontally, abs(dx) > abs(dy), abs(dx) > 0.1 {
+            let now = Date()
+            // Start a fresh accumulation on a trackpad gesture boundary OR after a
+            // pause (line-based scrolls — Magic Mouse, etc. — carry no phase info).
+            if event.phase.contains(.began) || now.timeIntervalSince(lastScrollTime) > 0.18 {
+                swipeAccumX = 0
+            }
+            lastScrollTime = now
+            swipeAccumX += dx
+            if abs(swipeAccumX) >= 50, now.timeIntervalSince(lastSwipeNav) > 0.35 {
+                lastSwipeNav = now
+                // Swipe left (deltaX > 0 with natural scrolling) → next image.
+                if swipeAccumX > 0 { onNext?() } else { onPrevious?() }
+                swipeAccumX = 0
+            }
+            return
+        }
+
+        super.scrollWheel(with: event)
     }
 
     override var acceptsFirstResponder: Bool { true }
