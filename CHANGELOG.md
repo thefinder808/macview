@@ -4,7 +4,7 @@ Notable changes to MacView. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/). MacView ships as a signed,
 notarized DMG; each released version gets a section here.
 
-## [1.0.0] — unreleased (first release)
+## [1.0.0] — 2026-06-26 (first release)
 
 ### Added
 - **Folder paging** — open one image and page through every image in its folder
