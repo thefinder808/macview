@@ -9,7 +9,10 @@ struct Filmstrip: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+                // Lazy so only cells near the viewport exist — a plain HStack
+                // materializes every cell up front, firing every thumbnail
+                // `.task` and decoding the entire folder on open.
+                LazyHStack(spacing: 8) {
                     ForEach(Array(model.urls.enumerated()), id: \.element) { index, url in
                         ThumbnailCell(url: url,
                                       isCurrent: index == model.index,
