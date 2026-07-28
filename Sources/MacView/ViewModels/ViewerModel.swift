@@ -193,7 +193,14 @@ final class ViewerModel: ObservableObject {
                 guard token == self.loadToken else { return }   // a newer navigation won
                 self.setBase(image)
             }
-            await loader.prefetch(self.neighborURLs())
+            // Prefetch neighbors one actor call at a time, re-checking between
+            // decodes that navigation hasn't moved on — a stale batch shouldn't
+            // keep burning decodes ahead of the image the user is now waiting on.
+            let neighbors = await MainActor.run { self.neighborURLs() }
+            for neighbor in neighbors {
+                guard await MainActor.run(body: { token == self.loadToken }) else { break }
+                await loader.prefetch(neighbor)
+            }
         }
         if infoVisible { loadInfo() }
     }

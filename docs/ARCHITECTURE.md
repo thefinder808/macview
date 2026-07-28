@@ -10,7 +10,7 @@ large-image handling matter.
 ```
 App/        MacViewApp (@main, Window + menu commands), AppDelegate,
             SettingsManager, WindowAccessor (dark chrome + fullscreen + frame autosave)
-Models/     ImageItem (URL wrapper), ImageInfo (overlay metadata)
+Models/     ImageInfo (overlay metadata)
 ViewModels/ ViewerModel — the single source of truth for the session
 Services/   FolderScanner, ImageLoader (actor), Thumbnailer (actor), MetadataReader,
             FileActions (trash), DefaultViewer (register as default image viewer)

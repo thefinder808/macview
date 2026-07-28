@@ -33,11 +33,4 @@ enum DefaultViewer {
         }
         return Outcome(succeeded: succeeded, total: types.count, lastError: lastError)
     }
-
-    /// True if MacView is currently the default for JPEG (a good proxy for "am I
-    /// the image default").
-    static var isDefaultForJPEG: Bool {
-        guard let handler = NSWorkspace.shared.urlForApplication(toOpen: .jpeg) else { return false }
-        return handler == Bundle.main.bundleURL
-    }
 }

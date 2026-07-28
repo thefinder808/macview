@@ -22,12 +22,14 @@ actor ImageLoader {
         return image
     }
 
-    /// Warm the cache for likely-next images (the neighbors of the current one).
-    func prefetch(_ urls: [URL]) {
-        for url in urls where cache[url] == nil {
-            if let image = NSImage(contentsOf: url) {
-                store(url, image)
-            }
+    /// Warm the cache for one likely-next image. One URL per call on purpose:
+    /// each decode is its own actor turn, so a `load` from a fresh keypress
+    /// interleaves between neighbor decodes instead of queueing behind a whole
+    /// batch (which made held-arrow paging hitch on large images).
+    func prefetch(_ url: URL) {
+        guard cache[url] == nil else { return }
+        if let image = NSImage(contentsOf: url) {
+            store(url, image)
         }
     }
 

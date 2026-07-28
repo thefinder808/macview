@@ -21,6 +21,13 @@ enum MetadataReader {
 
         info.pixelWidth = (props[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue
         info.pixelHeight = (props[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue
+        // PixelWidth/Height are the *stored* dimensions. EXIF orientations 5–8
+        // (portrait phone shots) display transposed — NSImage applies the
+        // rotation — so swap to match what's actually on screen.
+        if let orientation = (props[kCGImagePropertyOrientation] as? NSNumber)?.intValue,
+           (5...8).contains(orientation) {
+            swap(&info.pixelWidth, &info.pixelHeight)
+        }
 
         if let exif = props[kCGImagePropertyExifDictionary] as? [CFString: Any] {
             info.dateTaken = exif[kCGImagePropertyExifDateTimeOriginal] as? String

@@ -4,6 +4,23 @@ Notable changes to MacView. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/). MacView ships as a signed,
 notarized DMG; each released version gets a section here.
 
+## [Unreleased]
+
+### Fixed
+- Filmstrip thumbnails load lazily — opening an image in a very large folder no
+  longer decodes a thumbnail for every file up front.
+- The thumbnail cache is bounded (LRU, 256 entries) so huge folders can't grow
+  memory without limit.
+- Info overlay dimensions for EXIF-rotated photos (portrait phone shots) now
+  match the displayed orientation instead of the stored one.
+- Smoother paging while holding an arrow key: neighbor prefetch no longer queues
+  a whole batch ahead of the next image's decode, and stops once navigation has
+  moved on.
+
+### Removed
+- Dead code: the unused `ImageItem` model (file renamed to `ImageInfo.swift`)
+  and `DefaultViewer.isDefaultForJPEG`.
+
 ## [1.0.0] — 2026-06-26 (first release)
 
 ### Added
