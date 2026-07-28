@@ -1,0 +1,15 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>MacView</title>
+        <item>
+            <title>1.1.0</title>
+            <pubDate>Mon, 27 Jul 2026 20:54:54 -0500</pubDate>
+            <sparkle:version>1.1.0</sparkle:version>
+            <sparkle:shortVersionString>1.1.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <enclosure url="https://thefinder808.github.io/macview/releases/MacView-1.1.0.dmg" length="1277185" type="application/octet-stream" sparkle:edSignature="zJiwzfJd4LHRlx/4iylTpb/DAIBi2P1V5bv2BQraJgAomNnNHY5MJhABGBf2wMNJiCgC4Z/HXhmnMSZ+UaWUBw=="/>
+        </item>
+    </channel>
+</rss>
