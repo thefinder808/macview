@@ -5,8 +5,12 @@ Photos** "page through the folder" experience to the Mac. Open one image and use
 Next/Previous (arrow keys or on-screen chevrons) to flip through every other
 image in that folder, the way Preview never quite let you.
 
+<p align="center"><img src="docs/screenshots/hero.png" width="820" alt="MacView paging through a folder of images"></p>
+
 > Not affiliated with Microsoft or Windows. "Windows 11" is referenced only to
 > describe the interaction model this app emulates.
+
+<a href="https://www.buymeacoffee.com/thefinder808" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="36"></a>
 
 ## Features
 
@@ -29,6 +33,12 @@ image in that folder, the way Preview never quite let you.
 - **Broad format support** via macOS ImageIO: JPEG, PNG, GIF (animated plays
   inline), TIFF, BMP, HEIC/HEIF, WebP, AVIF, and camera RAW.
 - **Sleek dark** chrome with a hidden title bar; fullscreen support.
+- **Automatic updates** — MacView checks for new versions and updates itself
+  (App menu → Check for Updates…, or in the background; toggle in Settings).
+  Powered by [Sparkle](https://sparkle-project.org), with an EdDSA-signed
+  appcast served from GitHub Pages.
+
+<p align="center"><img src="docs/screenshots/info-overlay.png" width="700" alt="The info overlay showing dimensions, size, and type"></p>
 
 ## Keyboard shortcuts
 
@@ -51,7 +61,7 @@ image in that folder, the way Preview never quite let you.
 ## Install
 
 Download the latest `MacView-x.y.z.dmg` from Releases, open it, and drag MacView
-to Applications.
+to Applications. From then on MacView keeps itself up to date automatically.
 
 To make it your default image viewer, either:
 - open **MacView → Settings (⌘,) → "Set MacView as the Default Image Viewer"**, or
@@ -64,12 +74,13 @@ To make it your default image viewer, either:
 Requires macOS 14+ and the Swift toolchain (Xcode or Command Line Tools).
 
 ```bash
-git clone <repo-url> macview && cd macview
+git clone https://github.com/thefinder808/macview.git && cd macview
 ./build.sh run        # build a .app bundle and launch it
 ```
 
 Other `build.sh` subcommands: `app` (assemble bundle), `open` (launch via
-LaunchServices), `release` / `install` (to /Applications), `dmg`, `clean`.
+LaunchServices), `release` / `install` (to /Applications), `dmg`,
+`gen-appcast` / `publish-appcast` (Sparkle update feed), `clean`.
 
 ### Regenerate the icon
 
