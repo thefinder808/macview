@@ -4,7 +4,7 @@ Notable changes to MacView. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/). MacView ships as a signed,
 notarized DMG; each released version gets a section here.
 
-## [Unreleased]
+## [1.1.0] — 2026-07-27
 
 ### Added
 - **Automatic updates via Sparkle 2** — "Check for Updates…" in the app menu and
