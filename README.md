@@ -5,7 +5,7 @@ Photos** "page through the folder" experience to the Mac. Open one image and use
 Next/Previous (arrow keys or on-screen chevrons) to flip through every other
 image in that folder, the way Preview never quite let you.
 
-<p align="center"><img src="docs/screenshots/hero.png" width="820" alt="MacView paging through a folder of images"></p>
+<p align="center"><img src="docs/screenshots/hero.webp" width="820" alt="MacView paging through a folder of images"></p>
 
 > Not affiliated with Microsoft or Windows. "Windows 11" is referenced only to
 > describe the interaction model this app emulates.
@@ -38,7 +38,7 @@ image in that folder, the way Preview never quite let you.
   Powered by [Sparkle](https://sparkle-project.org), with an EdDSA-signed
   appcast served from GitHub Pages.
 
-<p align="center"><img src="docs/screenshots/info-overlay.png" width="700" alt="The info overlay showing dimensions, size, and type"></p>
+<p align="center"><img src="docs/screenshots/info-overlay.webp" width="700" alt="The info overlay showing dimensions, size, and type"></p>
 
 ## Keyboard shortcuts
 
