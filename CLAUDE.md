@@ -1,8 +1,9 @@
 # CLAUDE.md — MacView
 
 A simple macOS image viewer that emulates the Windows 11 Photos "page through the
-folder" model. SwiftUI + AppKit, Swift Package Manager only, macOS 14+, **no
-third-party dependencies**. See `docs/ARCHITECTURE.md` for the full layout.
+folder" model. SwiftUI + AppKit, Swift Package Manager only, macOS 14+, **Sparkle
+as the only third-party dependency** (auto-update). See `docs/ARCHITECTURE.md`
+for the full layout.
 
 ## Conventions (match the fleet: macpad / MacPerf / TraceView)
 
@@ -14,8 +15,16 @@ third-party dependencies**. See `docs/ARCHITECTURE.md` for the full layout.
   Rounded-rect plate at the **0.2249** corner ratio, ~100px margin on 1024, flat
   near-black plate — per the fleet icon gotchas.
 - **Signing/notarization**: Developer ID `Nathaniel Graham (Q6LRJQSA42)`, shared
-  `traceview-notary` keychain profile. DMG distribution (no Installer cert). No
-  Sparkle — distribution is a plain notarized DMG; auto-update is a possible v2.
+  `traceview-notary` keychain profile. DMG distribution (no Installer cert).
+- **Auto-update**: Sparkle 2 (the macpad/TraceView pattern, ported from macpad).
+  Shared fleet EdDSA key (private key in login Keychain); feed
+  `https://thefinder808.github.io/macview/appcast.xml` served from `gh-pages`
+  (bootstrap Pages when the repo goes public). Version is **tag-driven** in
+  `build.sh` (latest `v*` tag; `MACVIEW_VERSION` env overrides). Release flow:
+  `git tag v<x.y.z>` → `./build.sh notarize` → `gh release create` →
+  `./build.sh publish-appcast`. Sign **inside-out**, never `codesign --deep`
+  (breaks Sparkle's XPC services); `Downloader.xpc` keeps its entitlements via
+  `--preserve-metadata=entitlements`.
 - **Sandbox off** (`Resources/MacView.entitlements`) so the viewer can read sibling
   files in a folder for paging without security-scoped bookmarks.
 - **Info.plist** (generated in `build.sh`) declares image `CFBundleDocumentTypes`

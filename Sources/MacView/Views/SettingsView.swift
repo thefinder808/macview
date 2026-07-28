@@ -4,13 +4,30 @@ import SwiftUI
 /// one-click "make me the default image viewer".
 struct SettingsView: View {
     @EnvironmentObject var settings: SettingsManager
+    @EnvironmentObject var updater: UpdaterService
     @State private var status: String?
     @State private var working = false
 
     var body: some View {
+        // Sparkle's automaticallyChecksForUpdates is a plain get/set on the
+        // updater controller (not @Published), so wrap it in a manual Binding.
+        let autoCheck = Binding(
+            get: { updater.automaticallyChecksForUpdates },
+            set: { updater.automaticallyChecksForUpdates = $0 }
+        )
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
+
         Form {
             Section {
                 Toggle("Confirm before moving to Trash", isOn: $settings.confirmBeforeDelete)
+            }
+
+            Section("Software Updates") {
+                Toggle("Automatically check for updates", isOn: autoCheck)
+                LabeledContent("You're on MacView \(version).") {
+                    Button("Check Now") { updater.checkForUpdates() }
+                        .disabled(!updater.canCheckForUpdates)
+                }
             }
 
             Section("Default Image Viewer") {

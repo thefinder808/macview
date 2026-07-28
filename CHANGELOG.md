@@ -6,6 +6,12 @@ notarized DMG; each released version gets a section here.
 
 ## [Unreleased]
 
+### Added
+- **Automatic updates via Sparkle 2** — "Check for Updates…" in the app menu and
+  a Software Updates section in Settings (auto-check daily by default). Updates
+  are EdDSA-signed and served from the repo's `gh-pages` feed. The app version
+  is now derived from the latest `v*` git tag at build time.
+
 ### Fixed
 - Filmstrip thumbnails load lazily — opening an image in a very large folder no
   longer decodes a thumbnail for every file up front.
