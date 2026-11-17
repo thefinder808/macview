@@ -19,9 +19,13 @@ enum MetadataReader {
               let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
         else {
             // ImageIO can't read SVG; AppKit can, and reports its nominal size.
-            if let size = NSImage(contentsOf: url)?.size, size.width > 0, size.height > 0 {
-                info.pixelWidth = Int(size.width.rounded())
-                info.pixelHeight = Int(size.height.rounded())
+            // `Int(exactly:)`, not `Int(_:)`: an SVG can declare any size it likes
+            // (width="1e40"), and converting an out-of-range Double traps.
+            if let size = NSImage(contentsOf: url)?.size, size.width > 0, size.height > 0,
+               let w = Int(exactly: size.width.rounded()),
+               let h = Int(exactly: size.height.rounded()) {
+                info.pixelWidth = w
+                info.pixelHeight = h
             }
             return info
         }

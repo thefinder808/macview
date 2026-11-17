@@ -19,7 +19,23 @@ notarized DMG; each released version gets a section here.
     app's document types.
 
 ### Fixed
+- **Crash on SVGs that declare an absurd size** (e.g. `width="1e40"`). Opening
+  one — or just paging onto it — killed the app; 1.1.0 is affected. Vector
+  images are now capped at 4096 points on their longest side for display. The
+  info overlay still reports the declared size, and skips it when it isn't a
+  representable number.
+- **Runaway memory when zooming far into an SVG.** A vector is redrawn at the
+  zoomed size, so the bitmap grew with the square of the zoom — a large SVG at
+  1500% asked for over 200 GB. Zoom on vectors is now capped by a pixel budget:
+  small icons still reach 4000%, a 1024pt SVG stops at about 275% (about 140%
+  once rotated), and larger ones stop sooner. Photos are unaffected.
 - The toolbar zoom readout no longer wraps onto two lines at 1,000% and above.
+
+### Security
+- **Sparkle updated from 2.9.4 to 2.10.1**, picking up the fixes for three
+  upstream advisories (GHSA-gmj2-gq3j-vqmj, GHSA-3x7w-j75x-ppq5,
+  GHSA-4v99-qgq9-6pxp). `Package.resolved` is now committed so every build ships
+  the exact Sparkle version in git.
 
 ## [1.1.0] — 2026-07-27
 

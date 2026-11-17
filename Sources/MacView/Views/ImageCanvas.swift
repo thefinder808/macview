@@ -116,7 +116,7 @@ final class ZoomableImageScrollView: NSScrollView {
         autohidesScrollers = true
         allowsMagnification = true
         minMagnification = 0.05
-        maxMagnification = 40
+        maxMagnification = Self.zoomCeiling
         drawsBackground = false
 
         postsFrameChangedNotifications = true
@@ -169,12 +169,41 @@ final class ZoomableImageScrollView: NSScrollView {
     func setImage(_ image: NSImage?) {
         imageView.image = image
         imageView.animates = (image != nil)
+        maxMagnification = image.map(zoomCeiling(for:)) ?? Self.zoomCeiling
         if let image {
             imageView.frame = NSRect(origin: .zero, size: pixelSize(of: image))
         } else {
             imageView.frame = .zero
         }
         fitImage()
+    }
+
+    /// The most any image may be magnified (4000%).
+    private static let zoomCeiling: CGFloat = 40
+    /// Largest bitmap (in pixels) a zoomed vector may be rendered into.
+    private static let vectorPixelBudget: CGFloat = 32_000_000
+
+    /// Upper zoom bound for `image`. Bitmaps get the plain ceiling. A vector is
+    /// re-rasterized at the zoomed size — that's why it stays sharp — so its
+    /// bitmap grows with the square of the zoom: a 4096pt SVG at 1500% asked
+    /// AppKit for ~230 GB. Cap the zoom so that bitmap stays inside the budget.
+    /// Small icons still reach 4000%; large SVGs stop earlier.
+    ///
+    /// A rotated vector is PDF-backed (see `NSImage+Rotation`), and AppKit's PDF
+    /// renderer needs about six times the transient memory per pixel of its SVG
+    /// one (measured at 32 MP: 865 MB against 130 MB), so it gets a quarter of
+    /// the budget.
+    private func zoomCeiling(for image: NSImage) -> CGFloat {
+        guard image.isVector else { return Self.zoomCeiling }
+        let ps = pixelSize(of: image)
+        // The densest attached screen, so moving the window can't exceed it.
+        let backing = NSScreen.screens.map(\.backingScaleFactor).max() ?? 2
+        let area = ps.width * ps.height * backing * backing
+        guard area > 0, area.isFinite else { return Self.zoomCeiling }
+        let isPDF = image.representations.first is NSPDFImageRep
+        let budget = isPDF ? Self.vectorPixelBudget / 4 : Self.vectorPixelBudget
+        let cap = (budget / area).squareRoot()
+        return min(Self.zoomCeiling, max(minMagnification, cap))
     }
 
     /// Best pixel dimensions for the image (so 100% means one image pixel per

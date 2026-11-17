@@ -17,8 +17,16 @@ actor ImageLoader {
             touch(url)
             return cached
         }
-        guard let image = NSImage(contentsOf: url) else { return nil }
+        guard let image = decode(url) else { return nil }
         store(url, image)
+        return image
+    }
+
+    /// The one place full images are decoded, so every image the canvas sees
+    /// has a sane size (see `clampVectorSize`).
+    private func decode(_ url: URL) -> NSImage? {
+        guard let image = NSImage(contentsOf: url) else { return nil }
+        image.clampVectorSize()
         return image
     }
 
@@ -28,7 +36,7 @@ actor ImageLoader {
     /// batch (which made held-arrow paging hitch on large images).
     func prefetch(_ url: URL) {
         guard cache[url] == nil else { return }
-        if let image = NSImage(contentsOf: url) {
+        if let image = decode(url) {
             store(url, image)
         }
     }
