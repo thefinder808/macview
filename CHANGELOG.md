@@ -4,6 +4,23 @@ Notable changes to MacView. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/). MacView ships as a signed,
 notarized DMG; each released version gets a section here.
 
+## [Unreleased]
+
+### Added
+- **SVG support, properly.** SVGs already opened, but the rest of the app didn't
+  know about them:
+  - Filmstrip thumbnails now render for SVG files (they were blank).
+  - The info overlay shows an SVG's dimensions.
+  - Rotating an SVG keeps it a vector — sharp at any zoom, and the zoom percent
+    no longer jumps.
+  - Fit scales small SVGs (icons) **up** to fill the window. Photos still never
+    upscale past 100%.
+  - "Set as Default Image Viewer" now includes SVG, and SVG is declared in the
+    app's document types.
+
+### Fixed
+- The toolbar zoom readout no longer wraps onto two lines at 1,000% and above.
+
 ## [1.1.0] — 2026-07-27
 
 ### Added

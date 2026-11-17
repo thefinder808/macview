@@ -8,7 +8,7 @@ import UniformTypeIdentifiers
 enum DefaultViewer {
     /// The concrete image types worth claiming. Each has its own per-type default.
     static let types: [UTType] = [
-        .jpeg, .png, .gif, .tiff, .bmp, .heic, .heif, .webP, .rawImage,
+        .jpeg, .png, .gif, .tiff, .bmp, .heic, .heif, .webP, .rawImage, .svg,
     ]
 
     struct Outcome {

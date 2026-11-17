@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import ImageIO
 import UniformTypeIdentifiers
 
@@ -17,7 +17,14 @@ enum MetadataReader {
 
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
               let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
-        else { return info }
+        else {
+            // ImageIO can't read SVG; AppKit can, and reports its nominal size.
+            if let size = NSImage(contentsOf: url)?.size, size.width > 0, size.height > 0 {
+                info.pixelWidth = Int(size.width.rounded())
+                info.pixelHeight = Int(size.height.rounded())
+            }
+            return info
+        }
 
         info.pixelWidth = (props[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue
         info.pixelHeight = (props[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue

@@ -145,6 +145,7 @@ ${sparkle_ed_key_block}  <key>SUEnableAutomaticChecks</key>
         <string>public.webp</string>
         <string>public.camera-raw-image</string>
         <string>com.microsoft.bmp</string>
+        <string>public.svg-image</string>
       </array>
     </dict>
   </array>
