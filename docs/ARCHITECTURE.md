@@ -78,11 +78,23 @@ Utilities/  Color+Hex / Palette, NSImage+Rotation, NSImage+Vector (SVG helpers)
   AppKit backs only the **visible rect** of such a view (and replays the
   recorded drawing rather than calling `draw(_:)` again), so the cost is one
   viewport of pixels at any zoom: a 4096pt SVG at 4000% peaks at ~345 MB in a
-  1372×895 window, ~445 MB in a display-sized one. Two rules keep it that way:
+  1372×895 window (measured in the app; a standalone spike with a display-sized
+  1728×1085 window peaked ~445 MB, so the cost follows the window, not the
+  zoom). SVGs using blur, turbulence, masks, patterns, group opacity, blend
+  modes, clip paths and embedded images were ramped the same way and all stay
+  flat with zoom. Two rules keep it that way:
   draw the **rep**, not the `NSImage` (`NSImage.draw` goes through the image's
   bitmap cache and comes out blurry), and never put a vector back in an
   `NSImageView`. A `CATiledLayer` was also measured: sharp, but its tile cache
   climbed to ~660 MB while panning and it needs off-main drawing.
+
+- **Known gap: SVG filter regions.** AppKit rasterizes a `<filter>`'s region at
+  the image's nominal size whatever the output size, so the cost is paid on
+  open — even for a 200px thumbnail — and does not depend on zoom or on which
+  view draws it. On a 4096pt SVG a 150% region peaks ~2.4 GB in the canvas, a
+  300% region ~2.4 GB in the thumbnailer, and a 2100% region passes 3 GB in
+  both — so one such file in a folder can take the app down through the
+  filmstrip. Not mitigated yet (`clampVectorSize` only limits the base size).
 
 - **The zoom cap survives only where that is unmeasured.** `zoomCeiling(for:)`
   returns the plain 4000% ceiling for bitmaps, and for vectors on macOS 27+. The

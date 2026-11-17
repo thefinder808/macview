@@ -136,6 +136,17 @@ for the full layout.
   that kills the dev build above ~3 GB of RSS, and read the peak with
   `vmmap --summary <pid> | grep "Physical footprint"`.
 
+- **OPEN: an SVG `<filter>` region is a memory bomb at open, not at zoom.**
+  AppKit rasterizes the filter region at the image's *nominal* size regardless
+  of output size. Measured on macOS 27.2 with a 4096pt SVG: a 150% region
+  peaks ~2.4 GB in the canvas; a 300% region ~2.4 GB through
+  `rasterized(maxPixel: 200)` — so the filmstrip thumbnailer pays it for a
+  sibling file you never opened; a 2100% region passes 3 GB in the canvas (old
+  `NSImageView` and new `VectorImageView` alike) and in the thumbnailer. Zoom
+  is irrelevant. A 1024pt SVG with a 300% region is ~480 MB, so a lower nominal
+  clamp helps but does not close it. Test file: a filter with `x="-100%"
+  y="-100%" width="300%" height="300%"` and any primitive.
+
 - **Bumping Sparkle: clear the stale module cache.** After `swift package
   resolve` moves Sparkle, `swift build` fails with "SUAppcastItem.h has been
   modified since the module file … was built". Fix:
