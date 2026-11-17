@@ -112,6 +112,29 @@ for the full layout.
   rotation goes through an in-memory PDF. Also: `Text("\(int)%")` localizes the
   number ("4,000%") — use `Text(verbatim:)` for the zoom readout.
 
+- **An SVG's declared size is attacker-controlled.** `width="1e40"` crashed both
+  the canvas (`NSImageView` → `NSNewBitmapBackingStore` throws; shipped in 1.1.0)
+  and the info overlay (`Int(aDouble)` traps out of range). Every full decode goes
+  through `ImageLoader.decode`, which calls `clampVectorSize()`; convert sizes
+  with `Int(exactly:)`. Test folder recipe: SVGs with `1e40`, `1e400`, `1e8×3`,
+  `0`, negative/NaN sizes, entity bombs, 200k-deep nesting, and remote/`file://`
+  image refs (on macOS 27.2 AppKit fetched none of them).
+
+- **Zooming a vector costs memory quadratically — never raise the cap blind.**
+  `NSImageView` re-rasterizes an SVG at `size × magnification × backing scale`.
+  A 4096pt SVG at ~1500% reached a **231 GB** footprint before it was killed.
+  `ImageCanvas.zoomCeiling(for:)` caps `maxMagnification` per image by a pixel
+  budget (32 MP; 8 MP when PDF-backed, i.e. rotated — 865 MB vs 130 MB transient
+  at 32 MP). Raising the budget to 128 MP passed 3.4 GB. When testing zoom on
+  vectors, run a watchdog that kills the dev build above a few GB of RSS.
+
+- **Bumping Sparkle: clear the stale module cache.** After `swift package
+  resolve` moves Sparkle, `swift build` fails with "SUAppcastItem.h has been
+  modified since the module file … was built". Fix:
+  `rm -rf .build/out/Intermediates.noindex/SwiftExplicitPrecompiledModules`.
+  `Package.resolved` is committed — bump the floor in `Package.swift` and commit
+  both, or the release ships whatever this Mac last resolved.
+
 ## Verifying GUI changes
 
 `./build.sh open`, then drive via computer-use granting by **bundle id
