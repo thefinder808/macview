@@ -23,8 +23,11 @@ struct ViewerToolbar: View {
 
             divider
             icon("minus.magnifyingglass", "Zoom Out (⌘−)") { canvas.zoomOut() }
-            Text("\(canvas.zoomPercent)%")
+            // verbatim: a localized interpolation adds a grouping separator
+            // ("4,000%"), which wraps in this fixed-width slot.
+            Text(verbatim: "\(canvas.zoomPercent)%")
                 .font(.system(size: 12, weight: .medium)).monospacedDigit()
+                .lineLimit(1)
                 .foregroundStyle(.secondary).frame(width: 46)
             icon("plus.magnifyingglass", "Zoom In (⌘+)") { canvas.zoomIn() }
             icon("aspectratio", "Zoom to Fit (⌘0)") { canvas.fit() }

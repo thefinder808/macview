@@ -8,6 +8,7 @@ extension NSImage {
     func rotatedClockwise(_ clockwise: Int) -> NSImage {
         let n = ((clockwise % 360) + 360) % 360
         if n == 0 { return self }
+        if isVector { return vectorRotatedClockwise(n) }
         guard let cg = cgImage(forProposedRect: nil, context: nil, hints: nil) else { return self }
 
         let w = cg.width
@@ -37,5 +38,33 @@ extension NSImage {
 
         guard let out = ctx.makeImage() else { return self }
         return NSImage(cgImage: out, size: NSSize(width: newW, height: newH))
+    }
+
+    /// Rotation for vector images (SVG): replays the source through a rotated
+    /// transform into an in-memory PDF, so the copy is still a vector — sharp at
+    /// any zoom, same nominal size. Rasterizing would bake in the screen scale,
+    /// and a drawing-handler `NSImage` gets cached at its nominal size (a 24pt
+    /// icon turned to mush when zoomed).
+    private func vectorRotatedClockwise(_ n: Int) -> NSImage {
+        let src = size
+        let swap = (n == 90 || n == 270)
+        let newSize = swap ? NSSize(width: src.height, height: src.width) : src
+        var box = CGRect(origin: .zero, size: newSize)
+        let data = NSMutableData()
+        guard let consumer = CGDataConsumer(data: data as CFMutableData),
+              let ctx = CGContext(consumer: consumer, mediaBox: &box, nil)
+        else { return self }
+
+        ctx.beginPDFPage(nil)
+        ctx.translateBy(x: newSize.width / 2, y: newSize.height / 2)
+        ctx.rotate(by: -CGFloat(n) * .pi / 180)
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: false)
+        draw(in: NSRect(x: -src.width / 2, y: -src.height / 2,
+                        width: src.width, height: src.height))
+        NSGraphicsContext.restoreGraphicsState()
+        ctx.endPDFPage()
+        ctx.closePDF()
+        return NSImage(data: data as Data) ?? self
     }
 }

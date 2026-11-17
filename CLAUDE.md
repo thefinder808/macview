@@ -101,6 +101,17 @@ for the full layout.
   rewritten. Lossless save-to-file rotation is a deliberate v2 (avoids JPEG
   re-encode + read-only-file edge cases).
 
+- **ImageIO cannot decode SVG; AppKit can.** `CGImageSourceCreateWithURL` returns
+  a source for an `.svg`, but its status is `statusInvalidData` and the thumbnail
+  and properties calls return nil — so anything ImageIO-only (thumbnails, metadata)
+  silently comes back empty while the canvas (`NSImage(contentsOf:)`) works. Any
+  new ImageIO-based feature needs an `NSImage` fallback. Two traps when keeping a
+  vector a vector: `cgImage(forProposedRect: nil)` rasterizes at the screen scale
+  (a 1024pt SVG became 2048px, doubling its "100%"), and a drawing-handler
+  `NSImage` is cached at its nominal size (a 24pt icon blurs when zoomed). Hence
+  rotation goes through an in-memory PDF. Also: `Text("\(int)%")` localizes the
+  number ("4,000%") — use `Text(verbatim:)` for the zoom readout.
+
 ## Verifying GUI changes
 
 `./build.sh open`, then drive via computer-use granting by **bundle id

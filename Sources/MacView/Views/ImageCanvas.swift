@@ -221,15 +221,17 @@ final class ZoomableImageScrollView: NSScrollView {
         report()
     }
 
-    /// Fit-to-window magnification, never exceeding 100% (small images show at
-    /// actual size rather than being blown up).
+    /// Fit-to-window magnification. Bitmaps never exceed 100% (small images show
+    /// at actual size rather than being blown up); vectors (SVG) have no pixel
+    /// grid to blur, so a small icon scales up to fill the window.
     private func fitMagnification() -> CGFloat {
         guard let image = imageView.image else { return 1 }
         let ps = pixelSize(of: image)
         let viewport = bounds.size
         guard ps.width > 0, ps.height > 0, viewport.width > 0, viewport.height > 0 else { return 1 }
         let scale = min(viewport.width / ps.width, viewport.height / ps.height)
-        return max(min(scale, 1.0), minMagnification)
+        let cap = image.isVector ? maxMagnification : 1.0
+        return max(min(scale, cap), minMagnification)
     }
 
     private func clampMag(_ m: CGFloat) -> CGFloat { min(max(m, minMagnification), maxMagnification) }

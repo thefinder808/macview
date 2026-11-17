@@ -3,7 +3,8 @@ import ImageIO
 
 /// Produces small, cached thumbnails for the bottom filmstrip via ImageIO,
 /// which decodes only enough of each file to fill the requested pixel size —
-/// far cheaper than loading every full image. An `actor` for lock-free caching.
+/// far cheaper than loading every full image. Formats ImageIO can't decode
+/// (SVG) are drawn through AppKit instead. An `actor` for lock-free caching.
 actor Thumbnailer {
     private var cache: [URL: NSImage] = [:]
     private var order: [URL] = []         // LRU, most-recent last
@@ -16,18 +17,24 @@ actor Thumbnailer {
             touch(url)
             return cached
         }
+        // ImageIO has no SVG decoder, so fall back to AppKit (which does) and
+        // draw the vector into a thumbnail-sized bitmap.
+        guard let cg = imageIOThumbnail(for: url)
+                ?? NSImage(contentsOf: url)?.rasterized(maxPixel: maxPixel)
+        else { return nil }
+        let image = NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
+        store(url, image)
+        return image
+    }
+
+    private func imageIOThumbnail(for url: URL) -> CGImage? {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageIfAbsent: true,
             kCGImageSourceCreateThumbnailWithTransform: true,   // respect EXIF orientation
             kCGImageSourceThumbnailMaxPixelSize: maxPixel,
         ]
-        guard let cg = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
-            return nil
-        }
-        let image = NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
-        store(url, image)
-        return image
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
     }
 
     private func store(_ url: URL, _ image: NSImage) {

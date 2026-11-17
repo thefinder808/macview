@@ -31,7 +31,8 @@ image in that folder, the way Preview never quite let you.
 - **Info overlay** — dimensions, file size, type, and basic EXIF (⌘I).
 - **Remembers** its window size and position across launches.
 - **Broad format support** via macOS ImageIO: JPEG, PNG, GIF (animated plays
-  inline), TIFF, BMP, HEIC/HEIF, WebP, AVIF, and camera RAW.
+  inline), TIFF, BMP, HEIC/HEIF, WebP, AVIF, and camera RAW — plus **SVG**,
+  which stays sharp at any zoom.
 - **Sleek dark** chrome with a hidden title bar; fullscreen support.
 - **Automatic updates** — MacView checks for new versions and updates itself
   (App menu → Check for Updates…, or in the background; toggle in Settings).

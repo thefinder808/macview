@@ -17,7 +17,7 @@ Services/   FolderScanner, ImageLoader (actor), Thumbnailer (actor), MetadataRea
             FileActions (trash), DefaultViewer (register as default image viewer)
 Views/      ContentView (ZStack), ImageCanvas (NSViewRepresentable + canvas),
             ViewerToolbar, Filmstrip, InfoOverlay, NavChevrons, SettingsView
-Utilities/  Color+Hex / Palette, NSImage+Rotation
+Utilities/  Color+Hex / Palette, NSImage+Rotation, NSImage+Vector (SVG helpers)
 ```
 
 ## Data flow
@@ -46,8 +46,19 @@ Utilities/  Color+Hex / Palette, NSImage+Rotation
   set to the image's **pixel** size, so magnification 1.0 == 100% and fit math is
   exact.
 
-- **Fit never upscales.** `fitMagnification()` is `min(scale-to-fit, 1.0)` — large
-  images downscale to fit; small images show at 100%, centered.
+- **Fit never upscales bitmaps.** `fitMagnification()` is `min(scale-to-fit, 1.0)` —
+  large images downscale to fit; small images show at 100%, centered. Vectors
+  (`NSImage.isVector`) are the exception: they scale up to fill the window, capped
+  at `maxMagnification`.
+
+- **SVG rides on AppKit, not ImageIO.** ImageIO has no SVG decoder
+  (`CGImageSourceCreateThumbnailAtIndex` and the properties call both return nil),
+  but `NSImage(contentsOf:)` loads SVG as a vector rep. So the canvas needed
+  nothing, and the ImageIO-based services fall back: `Thumbnailer` draws the
+  `NSImage` into a ≤200px bitmap (`NSImage.rasterized(maxPixel:)`), and
+  `MetadataReader` reports the `NSImage`'s nominal size as the dimensions.
+  `NSImage.isVector` (first rep reports no pixel size) is the one test the canvas
+  and rotation use. See `Utilities/NSImage+Vector.swift`.
 
 - **Keyboard via a local event monitor, not first responder.** SwiftUI's hosting
   view keeps first-responder status, so a `keyDown` override on the AppKit canvas
@@ -89,7 +100,8 @@ Utilities/  Color+Hex / Palette, NSImage+Rotation
 
 - **Rotation is non-destructive.** `rotateLeft/Right` adjust a `rotation` value;
   `NSImage.rotatedClockwise` renders a pixel-preserving rotated copy for display.
-  The file on disk is never modified.
+  The file on disk is never modified. A vector source is replayed through a
+  rotated transform into an in-memory PDF, so the copy is still a vector.
 
 - **Delete is recoverable.** `FileManager.trashItem` (macOS Trash), gated by an
   optional confirm prompt, then auto-advance to the next image.
