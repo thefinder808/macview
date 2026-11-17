@@ -24,11 +24,14 @@ notarized DMG; each released version gets a section here.
   images are now capped at 4096 points on their longest side for display. The
   info overlay still reports the declared size, and skips it when it isn't a
   representable number.
-- **Runaway memory when zooming far into an SVG.** A vector is redrawn at the
-  zoomed size, so the bitmap grew with the square of the zoom — a large SVG at
-  1500% asked for over 200 GB. Zoom on vectors is now capped by a pixel budget:
-  small icons still reach 4000%, a 1024pt SVG stops at about 275% (about 140%
-  once rotated), and larger ones stop sooner. Photos are unaffected.
+- **Runaway memory when zooming far into an SVG.** The whole image was redrawn
+  at the zoomed size, so memory grew with the square of the zoom — a large SVG
+  at 1500% asked for over 200 GB. SVGs now render only the part of the image on
+  screen, so memory stays flat however far you zoom: a 4096-point SVG at 4000%
+  uses about 350 MB, rotated or not, and stays sharp. This applies on macOS 27
+  and later; on macOS 14–26 zoom on SVGs is capped by a pixel budget instead
+  (small icons still reach 4000%, a 1024pt SVG stops at about 275%, larger ones
+  sooner). Photos and GIFs are unaffected.
 - The toolbar zoom readout no longer wraps onto two lines at 1,000% and above.
 
 ### Security
