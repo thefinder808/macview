@@ -40,31 +40,30 @@ extension NSImage {
         return NSImage(cgImage: out, size: NSSize(width: newW, height: newH))
     }
 
-    /// Rotation for vector images (SVG): replays the source through a rotated
-    /// transform into an in-memory PDF, so the copy is still a vector — sharp at
-    /// any zoom, same nominal size. Rasterizing would bake in the screen scale,
-    /// and a drawing-handler `NSImage` gets cached at its nominal size (a 24pt
-    /// icon turned to mush when zoomed).
+    /// Rotation for vector images (SVG): a custom rep that replays the source
+    /// rep through a rotated transform, so the copy is still a vector — sharp at
+    /// any zoom, same nominal size, and no more memory than the original. This
+    /// relies on the canvas drawing the rep itself (`VectorImageView`); anything
+    /// that goes through `NSImage`'s cache (`NSImageView`, `NSImage.draw`) gets a
+    /// bitmap at the nominal size instead.
     private func vectorRotatedClockwise(_ n: Int) -> NSImage {
+        guard let source = representations.first else { return self }
         let src = size
         let swap = (n == 90 || n == 270)
         let newSize = swap ? NSSize(width: src.height, height: src.width) : src
-        var box = CGRect(origin: .zero, size: newSize)
-        let data = NSMutableData()
-        guard let consumer = CGDataConsumer(data: data as CFMutableData),
-              let ctx = CGContext(consumer: consumer, mediaBox: &box, nil)
-        else { return self }
-
-        ctx.beginPDFPage(nil)
-        ctx.translateBy(x: newSize.width / 2, y: newSize.height / 2)
-        ctx.rotate(by: -CGFloat(n) * .pi / 180)
-        NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: false)
-        draw(in: NSRect(x: -src.width / 2, y: -src.height / 2,
-                        width: src.width, height: src.height))
-        NSGraphicsContext.restoreGraphicsState()
-        ctx.endPDFPage()
-        ctx.closePDF()
-        return NSImage(data: data as Data) ?? self
+        let rep = NSCustomImageRep(size: newSize, flipped: false) { rect in
+            guard let ctx = NSGraphicsContext.current?.cgContext else { return false }
+            ctx.saveGState()
+            ctx.translateBy(x: rect.midX, y: rect.midY)
+            // CGContext positive rotation is counter-clockwise; negate for clockwise.
+            ctx.rotate(by: -CGFloat(n) * .pi / 180)
+            source.draw(in: NSRect(x: -src.width / 2, y: -src.height / 2,
+                                   width: src.width, height: src.height))
+            ctx.restoreGState()
+            return true
+        }
+        let rotated = NSImage(size: newSize)
+        rotated.addRepresentation(rep)
+        return rotated
     }
 }

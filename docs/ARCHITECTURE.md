@@ -39,8 +39,10 @@ Utilities/  Color+Hex / Palette, NSImage+Rotation, NSImage+Vector (SVG helpers)
 ## Key design decisions
 
 - **AppKit canvas, not SwiftUI Image.** `ZoomableImageScrollView` is an
-  `NSScrollView` (`allowsMagnification`) wrapping an `NSImageView`, with a
-  `CenteringClipView` so small images sit centered on the backdrop. This gives
+  `NSScrollView` (`allowsMagnification`) whose document view is an `NSImageView`
+  for bitmaps (it also plays animated GIFs) or a `VectorImageView` for vectors —
+  `setImage` swaps them — with a `CenteringClipView` so small images sit
+  centered on the backdrop. This gives
   pinch/⌘-scroll zoom, fit math, and smooth large-image rendering for far less
   code than reimplementing it with SwiftUI gestures. The document view's frame is
   set to the image's **pixel** size, so magnification 1.0 == 100% and fit math is
@@ -68,14 +70,40 @@ Utilities/  Color+Hex / Palette, NSImage+Rotation, NSImage+Vector (SVG helpers)
   size, converted with `Int(exactly:)` so an out-of-range value is skipped rather
   than trapping.
 
-- **Vector zoom is capped by a pixel budget.** `NSImageView` redraws a vector at
-  the magnified size (that is why it stays sharp), so the bitmap is
-  `size × magnification × backing scale`, squared. `setImage` sets the scroll
-  view's `maxMagnification` per image from `zoomCeiling(for:)`: 4000% for
-  bitmaps; for vectors, whatever keeps that bitmap within 32 MP (8 MP for a
-  rotated, PDF-backed vector, whose renderer costs ~6× more per pixel). Measured
-  peak footprint at the cap is ~350 MB. Deep zoom into large SVGs would need a
-  tiled renderer instead of `NSImageView`.
+- **Vectors draw through `VectorImageView`, not `NSImageView`.** `NSImageView`
+  rasterizes the *whole* vector at `size × magnification × backing scale`, so
+  memory grows with the square of the zoom (a 1024pt SVG: 820 MB at 400%, past
+  3 GB at 800%). `VectorImageView` is a plain `NSView` whose `draw(_:)` draws
+  the image's first rep into its bounds. Under a magnified `NSScrollView`,
+  AppKit backs only the **visible rect** of such a view (and replays the
+  recorded drawing rather than calling `draw(_:)` again), so the cost is one
+  viewport of pixels at any zoom: a 4096pt SVG at 4000% peaks at ~345 MB in a
+  1372×895 window (measured in the app; a standalone spike with a display-sized
+  1728×1085 window peaked ~445 MB, so the cost follows the window, not the
+  zoom). SVGs using blur, turbulence, masks, patterns, group opacity, blend
+  modes, clip paths and embedded images were ramped the same way and all stay
+  flat with zoom. A live trackpad pinch to 4000% with panning (hand-driven, same
+  4096pt SVG, 1340×848 window) peaked at 484 MB — the highest figure seen, and
+  transient: it settled back to ~170 MB. Two rules keep it that way:
+  draw the **rep**, not the `NSImage` (`NSImage.draw` goes through the image's
+  bitmap cache and comes out blurry), and never put a vector back in an
+  `NSImageView`. A `CATiledLayer` was also measured: sharp, but its tile cache
+  climbed to ~660 MB while panning and it needs off-main drawing.
+
+- **Known gap: SVG filter regions.** AppKit rasterizes a `<filter>`'s region at
+  the image's nominal size whatever the output size, so the cost is paid on
+  open — even for a 200px thumbnail — and does not depend on zoom or on which
+  view draws it. On a 4096pt SVG a 150% region peaks ~2.4 GB in the canvas, a
+  300% region ~2.4 GB in the thumbnailer, and a 2100% region passes 3 GB in
+  both — so one such file in a folder can take the app down through the
+  filmstrip. Not mitigated yet (`clampVectorSize` only limits the base size).
+
+- **The zoom cap survives only where that is unmeasured.** `zoomCeiling(for:)`
+  returns the plain 4000% ceiling for bitmaps, and for vectors on macOS 27+. The
+  visible-rect backing is AppKit's behavior, verified on macOS 27.2 only, so on
+  macOS 14–26 vectors keep the old pixel budget (32 MP) — the worst case there
+  is the old, capped zoom, never runaway memory. Measure on an older system
+  (watchdog on) before dropping the `#available` check.
 
 - **Keyboard via a local event monitor, not first responder.** SwiftUI's hosting
   view keeps first-responder status, so a `keyDown` override on the AppKit canvas
@@ -117,8 +145,10 @@ Utilities/  Color+Hex / Palette, NSImage+Rotation, NSImage+Vector (SVG helpers)
 
 - **Rotation is non-destructive.** `rotateLeft/Right` adjust a `rotation` value;
   `NSImage.rotatedClockwise` renders a pixel-preserving rotated copy for display.
-  The file on disk is never modified. A vector source is replayed through a
-  rotated transform into an in-memory PDF, so the copy is still a vector.
+  The file on disk is never modified. A vector source gets an
+  `NSCustomImageRep` that replays the source rep through a rotated transform,
+  so the copy is still a vector and costs no more memory than the original
+  (the earlier in-memory-PDF copy peaked ~160 MB higher on a 4096pt SVG).
 
 - **Delete is recoverable.** `FileManager.trashItem` (macOS Trash), gated by an
   optional confirm prompt, then auto-advance to the next image.

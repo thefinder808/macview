@@ -9,9 +9,10 @@ extension NSImage {
     }
 
     /// Caps a vector's nominal size so its longest side is at most `maxSide`
-    /// points. An SVG can declare any size it likes (`width="1e40"`), and
-    /// `NSImageView` allocates a bitmap that big to draw it — AppKit throws and
-    /// the app dies. A vector loses nothing by being drawn at a smaller nominal
+    /// points. An SVG can declare any size it likes (`width="1e40"`), and that
+    /// size becomes the canvas's document frame and zoom math (in 1.1.0
+    /// `NSImageView` tried to allocate a bitmap that big — AppKit threw and the
+    /// app died). A vector loses nothing by being drawn at a smaller nominal
     /// size; only what "100%" means changes. Bitmaps are left alone.
     func clampVectorSize(maxSide: CGFloat = 4096) {
         guard isVector else { return }

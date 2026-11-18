@@ -78,8 +78,31 @@ final class CenteringClipView: NSClipView {
     }
 }
 
+/// Document view for vector images (SVG, and the rotated copies of one). `NSImageView` rasterizes the *whole* image at the zoomed size, so its
+/// memory grows with the square of the zoom. A plain `draw(_:)` view doesn't:
+/// under a magnified `NSScrollView`, AppKit backs only the visible rect, so the
+/// cost is one viewport of pixels whatever the zoom. The rep is drawn directly —
+/// `NSImage.draw` goes through the image's bitmap cache and comes out blurry.
+/// Deliberately unflipped and mouse-transparent, like the `NSImageView` it
+/// stands in for, so clicks and drags still reach the scroll view.
+final class VectorImageView: NSView {
+    var image: NSImage? { didSet { needsDisplay = true } }
+
+    override func draw(_ dirtyRect: NSRect) {
+        image?.representations.first?.draw(in: bounds)
+    }
+
+    // Same accessibility role `NSImageView` gives a bitmap.
+    override func isAccessibilityElement() -> Bool { true }
+    override func accessibilityRole() -> NSAccessibility.Role? { .image }
+}
+
 final class ZoomableImageScrollView: NSScrollView {
+    /// Document view for bitmaps (and what plays animated GIFs).
     let imageView = NSImageView()
+    /// Document view for vectors; `setImage` swaps between the two.
+    let vectorView = VectorImageView()
+    private var image: NSImage?
 
     // Callbacks into the view model (all fire on the main thread).
     var onZoomChange: ((Int) -> Void)?
@@ -167,42 +190,43 @@ final class ZoomableImageScrollView: NSScrollView {
     // MARK: Image
 
     func setImage(_ image: NSImage?) {
-        imageView.image = image
-        imageView.animates = (image != nil)
+        self.image = image
+        let isVector = image?.isVector == true
+        imageView.image = isVector ? nil : image
+        imageView.animates = (imageView.image != nil)
+        vectorView.image = isVector ? image : nil
+        let doc: NSView = isVector ? vectorView : imageView
+        if documentView !== doc { documentView = doc }
         maxMagnification = image.map(zoomCeiling(for:)) ?? Self.zoomCeiling
-        if let image {
-            imageView.frame = NSRect(origin: .zero, size: pixelSize(of: image))
-        } else {
-            imageView.frame = .zero
-        }
+        doc.frame = NSRect(origin: .zero, size: image.map(pixelSize(of:)) ?? .zero)
         fitImage()
     }
 
     /// The most any image may be magnified (4000%).
     private static let zoomCeiling: CGFloat = 40
-    /// Largest bitmap (in pixels) a zoomed vector may be rendered into.
+    /// Largest bitmap (in pixels) a zoomed vector may be rendered into, on
+    /// systems where `VectorImageView`'s memory hasn't been measured.
     private static let vectorPixelBudget: CGFloat = 32_000_000
 
-    /// Upper zoom bound for `image`. Bitmaps get the plain ceiling. A vector is
-    /// re-rasterized at the zoomed size — that's why it stays sharp — so its
-    /// bitmap grows with the square of the zoom: a 4096pt SVG at 1500% asked
-    /// AppKit for ~230 GB. Cap the zoom so that bitmap stays inside the budget.
-    /// Small icons still reach 4000%; large SVGs stop earlier.
+    /// Upper zoom bound for `image`: the plain ceiling for bitmaps, and for
+    /// vectors on macOS 27+, where `VectorImageView` was measured to cost one
+    /// viewport of pixels at any zoom (a 4096pt SVG at 4000% peaks ~345 MB).
     ///
-    /// A rotated vector is PDF-backed (see `NSImage+Rotation`), and AppKit's PDF
-    /// renderer needs about six times the transient memory per pixel of its SVG
-    /// one (measured at 32 MP: 865 MB against 130 MB), so it gets a quarter of
-    /// the budget.
+    /// Older systems keep the pixel budget, because that visible-rect backing is
+    /// AppKit's doing and unverified there. If the whole image were rasterized
+    /// instead — as `NSImageView` does — the bitmap would grow with the square
+    /// of the zoom: a 4096pt SVG at 1500% asked for ~230 GB. The budget keeps it
+    /// bounded. Drop the availability check, and the budget with it, once an
+    /// older macOS has been measured (see CLAUDE.md).
     private func zoomCeiling(for image: NSImage) -> CGFloat {
         guard image.isVector else { return Self.zoomCeiling }
+        if #available(macOS 27, *) { return Self.zoomCeiling }
         let ps = pixelSize(of: image)
         // The densest attached screen, so moving the window can't exceed it.
         let backing = NSScreen.screens.map(\.backingScaleFactor).max() ?? 2
         let area = ps.width * ps.height * backing * backing
         guard area > 0, area.isFinite else { return Self.zoomCeiling }
-        let isPDF = image.representations.first is NSPDFImageRep
-        let budget = isPDF ? Self.vectorPixelBudget / 4 : Self.vectorPixelBudget
-        let cap = (budget / area).squareRoot()
+        let cap = (Self.vectorPixelBudget / area).squareRoot()
         return min(Self.zoomCeiling, max(minMagnification, cap))
     }
 
@@ -218,8 +242,8 @@ final class ZoomableImageScrollView: NSScrollView {
     // MARK: Zoom
 
     func fitImage() {
-        guard imageView.image != nil else { return }
-        let center = NSPoint(x: imageView.frame.midX, y: imageView.frame.midY)
+        guard image != nil, let doc = documentView else { return }
+        let center = NSPoint(x: doc.frame.midX, y: doc.frame.midY)
         setMagnification(fitMagnification(), centeredAt: center)
         isFitted = true
         report()
@@ -254,7 +278,7 @@ final class ZoomableImageScrollView: NSScrollView {
     /// at actual size rather than being blown up); vectors (SVG) have no pixel
     /// grid to blur, so a small icon scales up to fill the window.
     private func fitMagnification() -> CGFloat {
-        guard let image = imageView.image else { return 1 }
+        guard let image else { return 1 }
         let ps = pixelSize(of: image)
         let viewport = bounds.size
         guard ps.width > 0, ps.height > 0, viewport.width > 0, viewport.height > 0 else { return 1 }
@@ -264,6 +288,11 @@ final class ZoomableImageScrollView: NSScrollView {
     }
 
     private func clampMag(_ m: CGFloat) -> CGFloat { min(max(m, minMagnification), maxMagnification) }
+
+    /// The event's location in the current document view (bitmap or vector).
+    private func documentPoint(for event: NSEvent) -> NSPoint {
+        documentView?.convert(event.locationInWindow, from: nil) ?? .zero
+    }
 
     private func visibleCenterInDoc() -> NSPoint {
         let r = contentView.documentVisibleRect
@@ -288,7 +317,7 @@ final class ZoomableImageScrollView: NSScrollView {
         if event.modifierFlags.contains(.command) {
             let delta = event.hasPreciseScrollingDeltas ? event.scrollingDeltaY : event.deltaY
             guard delta != 0 else { return }
-            zoomBy(1 + delta * 0.01, centeredAt: imageView.convert(event.locationInWindow, from: nil))
+            zoomBy(1 + delta * 0.01, centeredAt: documentPoint(for: event))
             return
         }
 
@@ -379,7 +408,7 @@ final class ZoomableImageScrollView: NSScrollView {
             onClick?(.center)
         case 2:
             onClick?(.center)   // undo the chrome toggle the first click ran
-            toggleFitActual(at: imageView.convert(event.locationInWindow, from: nil))
+            toggleFitActual(at: documentPoint(for: event))
         default:
             break
         }

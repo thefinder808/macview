@@ -108,8 +108,10 @@ for the full layout.
   new ImageIO-based feature needs an `NSImage` fallback. Two traps when keeping a
   vector a vector: `cgImage(forProposedRect: nil)` rasterizes at the screen scale
   (a 1024pt SVG became 2048px, doubling its "100%"), and a drawing-handler
-  `NSImage` is cached at its nominal size (a 24pt icon blurs when zoomed). Hence
-  rotation goes through an in-memory PDF. Also: `Text("\(int)%")` localizes the
+  `NSImage` is cached at its nominal size (a 24pt icon blurs when zoomed). Both
+  bite only when something draws through `NSImage` (`NSImageView`,
+  `NSImage.draw`); the canvas draws the vector **rep** directly, which is why
+  rotation can be a plain `NSCustomImageRep` wrapping the source rep. Also: `Text("\(int)%")` localizes the
   number ("4,000%") — use `Text(verbatim:)` for the zoom readout.
 
 - **An SVG's declared size is attacker-controlled.** `width="1e40"` crashed both
@@ -120,13 +122,30 @@ for the full layout.
   `0`, negative/NaN sizes, entity bombs, 200k-deep nesting, and remote/`file://`
   image refs (on macOS 27.2 AppKit fetched none of them).
 
-- **Zooming a vector costs memory quadratically — never raise the cap blind.**
-  `NSImageView` re-rasterizes an SVG at `size × magnification × backing scale`.
-  A 4096pt SVG at ~1500% reached a **231 GB** footprint before it was killed.
-  `ImageCanvas.zoomCeiling(for:)` caps `maxMagnification` per image by a pixel
-  budget (32 MP; 8 MP when PDF-backed, i.e. rotated — 865 MB vs 130 MB transient
-  at 32 MP). Raising the budget to 128 MP passed 3.4 GB. When testing zoom on
-  vectors, run a watchdog that kills the dev build above a few GB of RSS.
+- **Never show a vector in `NSImageView` — it costs memory quadratically.**
+  `NSImageView` re-rasterizes an SVG at `size × magnification × backing scale`:
+  a 4096pt SVG at ~1500% reached a **231 GB** footprint before it was killed.
+  Vectors go through `VectorImageView` (`ImageCanvas.swift`), a plain `draw(_:)`
+  view that draws `image.representations.first` into its bounds. Under a
+  magnified `NSScrollView`, AppKit backs only the visible rect, so a 4096pt SVG
+  at 4000% peaks ~345 MB (rotated ~320 MB) — flat with zoom, proportional to the
+  window. A live pinch is the costliest path: 484 MB transient peak, by hand. Draw the **rep**: `NSImage.draw(in:)` there is blurry (1x cache). That
+  backing was measured on **macOS 27.2 only**, so `zoomCeiling(for:)` keeps the
+  old 32 MP pixel budget on macOS 14–26 behind `#available(macOS 27, *)`. To
+  lift it, measure there first. When testing zoom on vectors, run a watchdog
+  that kills the dev build above ~3 GB of RSS, and read the peak with
+  `vmmap --summary <pid> | grep "Physical footprint"`.
+
+- **OPEN: an SVG `<filter>` region is a memory bomb at open, not at zoom.**
+  AppKit rasterizes the filter region at the image's *nominal* size regardless
+  of output size. Measured on macOS 27.2 with a 4096pt SVG: a 150% region
+  peaks ~2.4 GB in the canvas; a 300% region ~2.4 GB through
+  `rasterized(maxPixel: 200)` — so the filmstrip thumbnailer pays it for a
+  sibling file you never opened; a 2100% region passes 3 GB in the canvas (old
+  `NSImageView` and new `VectorImageView` alike) and in the thumbnailer. Zoom
+  is irrelevant. A 1024pt SVG with a 300% region is ~480 MB, so a lower nominal
+  clamp helps but does not close it. Test file: a filter with `x="-100%"
+  y="-100%" width="300%" height="300%"` and any primitive.
 
 - **Bumping Sparkle: clear the stale module cache.** After `swift package
   resolve` moves Sparkle, `swift build` fails with "SUAppcastItem.h has been
@@ -136,6 +155,14 @@ for the full layout.
   both, or the release ships whatever this Mac last resolved.
 
 ## Verifying GUI changes
+
+Background computer-use input is misleading on this canvas. Arrow/space keys
+need the dev build **frontmost** (the key monitor checks `isKeyWindow`), and
+when the tool targets the bitmap `AXImage` it adds a stray click at `(-1, h+1)`
+that the canvas reads as a left-edge click — drags and double-clicks then
+"page backwards". The installed 1.1.0 does the same, so it is not a regression;
+confirm with temporary event logging before chasing it. Scroll, swipe and pinch
+cannot be delivered without foreground control.
 
 `./build.sh open`, then drive via computer-use granting by **bundle id
 `com.macview.app`** (granting by display name fails for a non-installed dev
