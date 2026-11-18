@@ -136,16 +136,26 @@ for the full layout.
   that kills the dev build above ~3 GB of RSS, and read the peak with
   `vmmap --summary <pid> | grep "Physical footprint"`.
 
-- **OPEN: an SVG `<filter>` region is a memory bomb at open, not at zoom.**
-  AppKit rasterizes the filter region at the image's *nominal* size regardless
-  of output size. Measured on macOS 27.2 with a 4096pt SVG: a 150% region
-  peaks ~2.4 GB in the canvas; a 300% region ~2.4 GB through
-  `rasterized(maxPixel: 200)` — so the filmstrip thumbnailer pays it for a
-  sibling file you never opened; a 2100% region passes 3 GB in the canvas (old
-  `NSImageView` and new `VectorImageView` alike) and in the thumbnailer. Zoom
-  is irrelevant. A 1024pt SVG with a 300% region is ~480 MB, so a lower nominal
-  clamp helps but does not close it. Test file: a filter with `x="-100%"
-  y="-100%" width="300%" height="300%"` and any primitive.
+- **Drawing an SVG can cost gigabytes at any size — vectors are probed in a
+  child process (`VectorProbe`).** AppKit sizes a buffer for each filtered or
+  masked element by its bounding box × filter region in **viewBox units with
+  transforms applied** (~36 bytes/px), on every draw, whatever the output size.
+  Declared `width`, `NSImage.size` and `rep.size` do not change it. Don't try to
+  scan the file instead: with the *default* region, `transform="scale(100)"`,
+  a `<rect width="1000000">` and a `<mask>` on a huge element each pass 3 GB in
+  0.2 s; CSS `filter:` works; `encoding="UTF-7"` hides the word "filter" from
+  the bytes and still renders. So `Thumbnailer` and `ImageLoader.decode` go
+  through `VectorProbe`, which re-runs this executable with `--probe-vector`
+  (handled in `Main`, before SwiftUI) under a 512 MB / 5 s watchdog. **Never
+  draw a vector in-process that hasn't passed** — any new code that draws an
+  `NSImage` from disk must go through `ImageLoader`. Loading alone
+  (`NSImage(contentsOf:).size`) is 3 MB and safe. A legit full-canvas blur
+  costs 135 MB at a 1024 viewBox, 306 MB at 2048, 976 MB at 4096 — so the
+  limit refuses real files above roughly a 2,700-unit viewBox; that is the
+  trade, not a bug. Test files: any filter on a `scale(100)` group, and a
+  mask on a 1e6-wide rect. Test the child alone with
+  `/usr/bin/time -l build/MacView.app/Contents/MacOS/MacView --probe-vector f.svg 200 > out.png`
+  (exit 0 = passed, 9 = memory, 8 = time, 1 = can't draw).
 
 - **Bumping Sparkle: clear the stale module cache.** After `swift package
   resolve` moves Sparkle, `swift build` fails with "SUAppcastItem.h has been

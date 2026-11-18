@@ -32,6 +32,16 @@ notarized DMG; each released version gets a section here.
   and later; on macOS 14–26 zoom on SVGs is capped by a pixel budget instead
   (small icons still reach 4000%, a 1024pt SVG stops at about 275%, larger ones
   sooner). Photos and GIFs are unaffected.
+- **An SVG that makes the renderer use gigabytes of memory can no longer take
+  the app down.** Certain filters and masks cost memory the moment the file is
+  drawn — even as a filmstrip thumbnail, so one such file broke every image in
+  its folder. MacView now tries each SVG in a separate short-lived process
+  first, limited to 512 MB and 5 seconds. A file that fails shows "This image
+  needs too much memory to display" and a blank thumbnail; everything else in
+  the folder is unaffected. Ordinary SVGs with blurs and drop shadows render as
+  before. Very large SVGs with a filter over the whole canvas (roughly above a
+  2,700-unit viewBox) may now be refused, and SVG thumbnails take a little
+  longer to appear (about 0.1 s each).
 - The toolbar zoom readout no longer wraps onto two lines at 1,000% and above.
 
 ### Security

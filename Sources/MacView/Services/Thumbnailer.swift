@@ -4,7 +4,8 @@ import ImageIO
 /// Produces small, cached thumbnails for the bottom filmstrip via ImageIO,
 /// which decodes only enough of each file to fill the requested pixel size —
 /// far cheaper than loading every full image. Formats ImageIO can't decode
-/// (SVG) are drawn through AppKit instead. An `actor` for lock-free caching.
+/// (SVG) are drawn through AppKit in a child process (`VectorProbe`). An
+/// `actor` for lock-free caching.
 actor Thumbnailer {
     private var cache: [URL: NSImage] = [:]
     private var order: [URL] = []         // LRU, most-recent last
@@ -17,10 +18,11 @@ actor Thumbnailer {
             touch(url)
             return cached
         }
-        // ImageIO has no SVG decoder, so fall back to AppKit (which does) and
-        // draw the vector into a thumbnail-sized bitmap.
+        // ImageIO has no SVG decoder, so fall back to AppKit (which does). That
+        // draw happens in a child process: an SVG can make it cost gigabytes even
+        // at thumbnail size, and this runs for files the user never opened.
         guard let cg = imageIOThumbnail(for: url)
-                ?? NSImage(contentsOf: url)?.rasterized(maxPixel: maxPixel)
+                ?? VectorProbe.thumbnail(for: url, maxPixel: maxPixel)
         else { return nil }
         let image = NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
         store(url, image)

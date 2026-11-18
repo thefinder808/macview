@@ -16,6 +16,18 @@ struct ContentView: View {
                 ImageCanvas(model: model, controller: canvas).ignoresSafeArea()
             }
 
+            // Shown instead of a blank canvas when the file couldn't be drawn.
+            // Visual only — clicks go to the canvas underneath, as usual.
+            if !model.isEmpty, let problem = model.loadProblem {
+                VStack(spacing: 10) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 40, weight: .thin))
+                    Text(problem).font(.system(size: 13))
+                }
+                .foregroundStyle(.secondary)
+                .allowsHitTesting(false)
+            }
+
             // Edge navigation chevrons.
             if !model.isEmpty, model.count > 1, model.chromeVisible {
                 NavChevrons()

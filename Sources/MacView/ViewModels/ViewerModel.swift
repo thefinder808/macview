@@ -18,6 +18,8 @@ final class ViewerModel: ObservableObject {
     // The image actually shown (base rotated by `rotation`).
     @Published private(set) var displayImage: NSImage?
     @Published private(set) var rotation: Int = 0   // clockwise degrees, multiple of 90
+    /// Why the current file shows nothing, once its load has finished empty.
+    @Published private(set) var loadProblem: String?
 
     // Chrome / overlays.
     @Published var chromeVisible = true
@@ -183,6 +185,7 @@ final class ViewerModel: ObservableObject {
     private func loadCurrent() {
         rotation = 0
         info = nil
+        loadProblem = nil
         guard let url = current else { setBase(nil); return }
 
         loadToken += 1
@@ -192,6 +195,11 @@ final class ViewerModel: ObservableObject {
             await MainActor.run {
                 guard token == self.loadToken else { return }   // a newer navigation won
                 self.setBase(image)
+                if image == nil {
+                    self.loadProblem = VectorProbe.wasRefused(url)
+                        ? "This image needs too much memory to display."
+                        : "This image can’t be displayed."
+                }
             }
             // Prefetch neighbors one actor call at a time, re-checking between
             // decodes that navigation hasn't moved on — a stale batch shouldn't
