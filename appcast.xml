@@ -3,8 +3,20 @@
     <channel>
         <title>MacView</title>
         <item>
+            <title>1.1.1</title>
+            <pubDate>Wed, 18 Nov 2026 08:36:35 -0600</pubDate>
+            <sparkle:version>1.1.1</sparkle:version>
+            <sparkle:shortVersionString>1.1.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <enclosure url="https://thefinder808.github.io/macview/releases/MacView-1.1.1.dmg" length="1285894" type="application/octet-stream" sparkle:edSignature="AZ0Az++e7i85ymvO/uj61Tn3JbewxfVLZjE3N58YkgWN9Xkndq9lTPzm7a3v3AJmEJOoAi4hc47llevZNKR0Dg=="/>
+            <sparkle:deltas>
+                <enclosure url="https://thefinder808.github.io/macview/releases/MacView1.1.1-1.1.0.delta" sparkle:deltaFrom="1.1.0" length="503482" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="977808" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="0UY6oZjyaJg9o3cNYOos5aUJFe3qwbPQ93F36VkvDrLfY4PBMDwKwpqyPJvyEWVxthYqEWEA3kBznWv/ob3ODQ=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>1.1.0</title>
-            <pubDate>Mon, 27 Jul 2026 20:54:54 -0500</pubDate>
+            <pubDate>Wed, 18 Nov 2026 08:36:35 -0600</pubDate>
             <sparkle:version>1.1.0</sparkle:version>
             <sparkle:shortVersionString>1.1.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
