@@ -52,7 +52,11 @@ extension NSImage {
 
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: false)
-        draw(in: NSRect(x: 0, y: 0, width: w, height: h))
+        let rect = NSRect(x: 0, y: 0, width: w, height: h)
+        // A vector's rep is drawn directly, as the canvas does: `NSImage.draw`
+        // goes through the image's cache, which holds a rotated vector (a
+        // custom rep) at its nominal size and so blurs it when scaled up.
+        if isVector, let rep = representations.first { rep.draw(in: rect) } else { draw(in: rect) }
         NSGraphicsContext.restoreGraphicsState()
         return ctx.makeImage()
     }

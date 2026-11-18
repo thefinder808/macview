@@ -42,7 +42,16 @@ notarized DMG; each released version gets a section here.
   before. Very large SVGs with a filter over the whole canvas (roughly above a
   2,700-unit viewBox) may now be refused, and SVG thumbnails take a little
   longer to appear (about 0.1 s each).
+- **Stale filmstrip after opening another folder.** Opening an image from a
+  different folder while MacView was already showing one left the first few
+  thumbnails — and the highlight — from the previous folder. 1.1.0 is affected.
+- **Copying a large SVG (⌘C) used gigabytes and copied nothing.** A 4096-point
+  SVG cost 3.3 GB and the pasteboard refused the result. SVGs are now copied as
+  a bitmap 2048–4096 pixels on the longest side (about 330 MB for that
+  same file).
 - The toolbar zoom readout no longer wraps onto two lines at 1,000% and above.
+- A file that can't be decoded now shows "This image can't be displayed"
+  instead of a blank canvas.
 
 ### Security
 - **Sparkle updated from 2.9.4 to 2.10.1**, picking up the fixes for three

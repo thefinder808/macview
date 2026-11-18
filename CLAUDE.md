@@ -157,6 +157,17 @@ for the full layout.
   `/usr/bin/time -l build/MacView.app/Contents/MacOS/MacView --probe-vector f.svg 200 > out.png`
   (exit 0 = passed, 9 = memory, 8 = time, 1 = can't draw).
 
+- **Don't put `.id(index)` on filmstrip cells.** The `ForEach` already ids each
+  cell by URL. An explicit index id made a newly opened folder reuse the old
+  folder's cells: the first N thumbnails and the highlight stayed stale (shipped
+  in 1.1.0). `ScrollViewReader.scrollTo` takes the URL. Repro: open a file,
+  then open one from a different folder in the same window.
+
+- **Never hand a vector `NSImage` to the pasteboard.** AppKit's TIFF of a
+  4096pt SVG cost 3.3 GB and the write failed silently. `copyToClipboard`
+  rasterizes vectors first. `NSImage.rasterized` draws a vector's rep directly
+  (`NSImage.draw` blurs a rotated vector's custom rep above its nominal size).
+
 - **Bumping Sparkle: clear the stale module cache.** After `swift package
   resolve` moves Sparkle, `swift build` fails with "SUAppcastItem.h has been
   modified since the module file … was built". Fix:

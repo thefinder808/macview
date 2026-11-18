@@ -30,9 +30,9 @@ enum VectorProbe {
     /// drawn within the limits (or at all).
     static func thumbnail(for url: URL, maxPixel: CGFloat) -> CGImage? {
         // Don't pay for a known-bad file again each time its cell scrolls into view.
-        if verdict(for: url) == false { return nil }
-        let image = runChild(url: url, maxPixel: maxPixel)
-        remember(url, safe: image != nil)
+        if let known = verdict(for: url), known != .safe { return nil }
+        let (image, result) = runChild(url: url, maxPixel: maxPixel)
+        remember(url, result)
         return image
     }
 
@@ -41,15 +41,24 @@ enum VectorProbe {
     /// or zoom (a file at 501 MB here peaked at 521 MB in the canvas from 18%
     /// to 4000%, rotated or not — macOS 27.2; older systems keep a zoom cap).
     static func isSafe(_ url: URL) -> Bool {
-        if let known = verdict(for: url) { return known }
+        if let known = verdict(for: url) { return known == .safe }
         return thumbnail(for: url, maxPixel: 64) != nil
     }
 
-    /// True only if the file was probed and failed — for the canvas message.
-    static func wasRefused(_ url: URL) -> Bool { verdict(for: url) == false }
+    /// True only if the file was probed and hit a limit — for the canvas
+    /// message. A file that simply can't be decoded (the thumbnailer probes
+    /// anything ImageIO rejects, corrupt bitmaps included) is not "refused".
+    static func wasRefused(_ url: URL) -> Bool { verdict(for: url) == .overLimit }
 
-    private static func runChild(url: URL, maxPixel: CGFloat) -> CGImage? {
-        guard let executable = Bundle.main.executableURL else { return nil }
+    /// How a probe ended: drew fine, was stopped by the watchdog, or failed
+    /// some other way (unreadable file, renderer crash).
+    private enum Verdict { case safe, overLimit, failed }
+    /// The child's exit codes when the watchdog stops it.
+    private static let memoryExit: Int32 = 9
+    private static let timeExit: Int32 = 8
+
+    private static func runChild(url: URL, maxPixel: CGFloat) -> (CGImage?, Verdict) {
+        guard let executable = Bundle.main.executableURL else { return (nil, .failed) }
         let process = Process()
         process.executableURL = executable
         process.arguments = [flag, url.path, String(Int(maxPixel))]
@@ -57,36 +66,40 @@ enum VectorProbe {
         process.standardOutput = output
         process.standardError = FileHandle.nullDevice
         process.standardInput = FileHandle.nullDevice
-        guard (try? process.run()) != nil else { return nil }
+        guard (try? process.run()) != nil else { return (nil, .failed) }
         // Read to EOF before waiting, or a full pipe would block the child.
         let data = output.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
-        guard process.terminationReason == .exit, process.terminationStatus == 0,
-              let source = CGImageSourceCreateWithData(data as CFData, nil)
-        else { return nil }
-        return CGImageSourceCreateImageAtIndex(source, 0, nil)
+        guard process.terminationReason == .exit else { return (nil, .failed) }
+        let status = process.terminationStatus
+        if status == memoryExit || status == timeExit { return (nil, .overLimit) }
+        guard status == 0,
+              let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
+        else { return (nil, .failed) }
+        return (image, .safe)
     }
 
     // Verdicts, keyed by URL and remembered with the file's modification date
     // so an edited file is probed again.
     private static let lock = NSLock()
-    private static var verdicts: [URL: (modified: Date?, safe: Bool)] = [:]
+    private static var verdicts: [URL: (modified: Date?, verdict: Verdict)] = [:]
 
     private static func modified(_ url: URL) -> Date? {
         try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
     }
 
-    private static func remember(_ url: URL, safe: Bool) {
+    private static func remember(_ url: URL, _ verdict: Verdict) {
         let date = modified(url)
         lock.lock(); defer { lock.unlock() }
-        verdicts[url] = (date, safe)
+        verdicts[url] = (date, verdict)
     }
 
-    private static func verdict(for url: URL) -> Bool? {
+    private static func verdict(for url: URL) -> Verdict? {
         let date = modified(url)
         lock.lock(); defer { lock.unlock() }
         guard let entry = verdicts[url], entry.modified == date else { return nil }
-        return entry.safe
+        return entry.verdict
     }
 
     // MARK: Child side
@@ -100,8 +113,8 @@ enum VectorProbe {
         let start = Date()
         Thread.detachNewThread {
             while true {
-                if footprint() > memoryLimit { _exit(9) }
-                if Date().timeIntervalSince(start) > timeLimit { _exit(8) }
+                if footprint() > memoryLimit { _exit(memoryExit) }
+                if Date().timeIntervalSince(start) > timeLimit { _exit(timeExit) }
                 usleep(5_000)
             }
         }

@@ -103,11 +103,22 @@ final class ViewerModel: ObservableObject {
 
     /// Copy the current image (as shown, including rotation) plus its file URL to
     /// the pasteboard, so it can be pasted as an image or as a file.
+    ///
+    /// A vector is copied as a bitmap of bounded size (2048–4096px on its
+    /// longest side). Handed the vector itself, AppKit writes a TIFF so large
+    /// that a 4096pt SVG cost 3.3 GB and the pasteboard refused it.
     func copyToClipboard() {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         var items: [NSPasteboardWriting] = []
-        if let image = displayImage { items.append(image) }
+        if let image = displayImage {
+            if !image.isVector {
+                items.append(image)
+            } else if let cg = image.rasterized(
+                maxPixel: min(4096, max(2048, image.size.width, image.size.height))) {
+                items.append(NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height)))
+            }
+        }
         if let url = current { items.append(url as NSURL) }
         guard !items.isEmpty else { return }
         pasteboard.writeObjects(items)
