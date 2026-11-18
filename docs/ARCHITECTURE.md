@@ -116,7 +116,7 @@ Utilities/  Color+Hex / Palette, NSImage+Rotation, NSImage+Vector (SVG helpers)
   and `ImageLoader.decode` returns nil for a vector that didn't pass (verdicts
   are cached per URL + modification date), so a refused file is never drawn
   in-process: blank filmstrip cell, and the canvas shows "This image needs too
-  much memory to display." `MetadataReader` only loads, never draws, so it is
+  much memory or time to display." `MetadataReader` only loads, never draws, so it is
   unchanged.
 
   Measured in the dev build on a folder holding three hostile SVGs: peak
@@ -124,7 +124,14 @@ Utilities/  Color+Hex / Palette, NSImage+Rotation, NSImage+Vector (SVG helpers)
   the others; 448–507 MB once a legitimate 2048-viewBox, 150%-region SVG is on
   screen (that file alone costs 425 MB). The child itself overshoots its limit
   briefly (up to ~700 MB on the worst file) before the 5 ms watchdog catches it.
-  The costs: ~70–100 ms per SVG thumbnail (a process launch; 30 icons took 2.0 s), and a legitimate
+  A file just under the limit (501 MB in the child) peaked at 521 MB in a
+  canvas spike ramped from 18% to 4000% with pans, rotated or not, so a pass at
+  thumbnail size holds at any zoom. That equivalence, like the visible-rect
+  backing it relies on, was measured on **macOS 27.2 only**; on macOS 14–26 the
+  zoom cap below still applies to vectors.
+  The costs: ~70–100 ms per SVG thumbnail (a process launch; 30 icons took 2.0 s), the
+  same once per SVG on the paging/prefetch path when no thumbnail has probed it
+  yet (filmstrip hidden), and a legitimate
   SVG whose filters cover more than roughly 12 MP — e.g. a full-canvas blur on
   a viewBox larger than about 2,700 units — is refused. Raising `memoryLimit`
   trades that against the app's peak one for one.

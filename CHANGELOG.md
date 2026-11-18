@@ -37,7 +37,7 @@ notarized DMG; each released version gets a section here.
   drawn — even as a filmstrip thumbnail, so one such file broke every image in
   its folder. MacView now tries each SVG in a separate short-lived process
   first, limited to 512 MB and 5 seconds. A file that fails shows "This image
-  needs too much memory to display" and a blank thumbnail; everything else in
+  needs too much memory or time to display" and a blank thumbnail; everything else in
   the folder is unaffected. Ordinary SVGs with blurs and drop shadows render as
   before. Very large SVGs with a filter over the whole canvas (roughly above a
   2,700-unit viewBox) may now be refused, and SVG thumbnails take a little

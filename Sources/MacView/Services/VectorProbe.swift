@@ -29,12 +29,17 @@ enum VectorProbe {
     /// The file's thumbnail, drawn in a child process. Nil if the file can't be
     /// drawn within the limits (or at all).
     static func thumbnail(for url: URL, maxPixel: CGFloat) -> CGImage? {
+        // Don't pay for a known-bad file again each time its cell scrolls into view.
+        if verdict(for: url) == false { return nil }
         let image = runChild(url: url, maxPixel: maxPixel)
         remember(url, safe: image != nil)
         return image
     }
 
     /// True if the file drew within the limits. Probes it if nobody has yet.
+    /// A tiny probe is enough: the cost measured does not follow output size
+    /// or zoom (a file at 501 MB here peaked at 521 MB in the canvas from 18%
+    /// to 4000%, rotated or not — macOS 27.2; older systems keep a zoom cap).
     static func isSafe(_ url: URL) -> Bool {
         if let known = verdict(for: url) { return known }
         return thumbnail(for: url, maxPixel: 64) != nil

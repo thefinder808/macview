@@ -197,7 +197,7 @@ final class ViewerModel: ObservableObject {
                 self.setBase(image)
                 if image == nil {
                     self.loadProblem = VectorProbe.wasRefused(url)
-                        ? "This image needs too much memory to display."
+                        ? "This image needs too much memory or time to display."
                         : "This image can’t be displayed."
                 }
             }
