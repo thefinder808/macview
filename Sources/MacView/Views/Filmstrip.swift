@@ -12,12 +12,15 @@ struct Filmstrip: View {
                 // Lazy so only cells near the viewport exist — a plain HStack
                 // materializes every cell up front, firing every thumbnail
                 // `.task` and decoding the entire folder on open.
+                // Cells are identified by URL (the ForEach id), and scrolling
+                // targets that id. An explicit `.id(index)` here made a newly
+                // opened folder reuse the previous folder's cells — its first
+                // few thumbnails and the highlight stayed stale.
                 LazyHStack(spacing: 8) {
                     ForEach(Array(model.urls.enumerated()), id: \.element) { index, url in
                         ThumbnailCell(url: url,
                                       isCurrent: index == model.index,
                                       thumbnailer: model.thumbnailer)
-                            .id(index)
                             .onTapGesture { model.jump(to: index) }
                     }
                 }
@@ -26,10 +29,11 @@ struct Filmstrip: View {
             }
             .frame(height: 84)
             .background(.ultraThinMaterial)
-            .onChange(of: model.index) { _, newValue in
-                withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(newValue, anchor: .center) }
+            .onChange(of: model.current) { _, url in
+                guard let url else { return }
+                withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(url, anchor: .center) }
             }
-            .onAppear { proxy.scrollTo(model.index, anchor: .center) }
+            .onAppear { if let url = model.current { proxy.scrollTo(url, anchor: .center) } }
         }
     }
 }

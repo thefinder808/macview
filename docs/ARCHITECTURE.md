@@ -118,7 +118,10 @@ Utilities/  Color+Hex / Palette, NSImage+Rotation, NSImage+Vector (SVG helpers)
   and `ImageLoader.decode` returns nil for a vector that didn't pass (verdicts
   are cached per URL + modification date), so a refused file is never drawn
   in-process: blank filmstrip cell, and the canvas shows "This image needs too
-  much memory or time to display." `MetadataReader` only loads, never draws, so it is
+  much memory or time to display." That message is only for a probe the
+  watchdog stopped (exit 8 or 9): the thumbnailer probes anything ImageIO
+  rejects, so a corrupt bitmap also fails a probe, and it gets the plain "This
+  image can't be displayed." `MetadataReader` only loads, never draws, so it is
   unchanged.
 
   Measured in the dev build on a folder holding three hostile SVGs: peak
@@ -172,7 +175,8 @@ Utilities/  Color+Hex / Palette, NSImage+Rotation, NSImage+Vector (SVG helpers)
   drops) and sets `setFrameAutosaveName`, so size/position persist across launches.
 
 - **File actions.** Copy (⌘C) writes the displayed `NSImage` + file URL to the
-  pasteboard; Reveal in Finder uses `NSWorkspace.activateFileViewerSelecting`; Share
+  pasteboard — a vector as a bounded bitmap (2048–4096px), because AppKit's own
+  TIFF of a 4096pt SVG cost 3.3 GB and the pasteboard refused it; Reveal in Finder uses `NSWorkspace.activateFileViewerSelecting`; Share
   is a SwiftUI `ShareLink` on the toolbar; and the Settings pane's "Set as Default
   Image Viewer" calls `DefaultViewer.makeDefault` (per-UTI `NSWorkspace`
   registration). `FileActions` itself holds only the destructive `trash`.
