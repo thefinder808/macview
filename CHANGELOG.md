@@ -4,7 +4,7 @@ Notable changes to MacView. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/). MacView ships as a signed,
 notarized DMG; each released version gets a section here.
 
-## [Unreleased]
+## [1.1.1] — 2026-11-18
 
 ### Added
 - **SVG support, properly.** SVGs already opened, but the rest of the app didn't
