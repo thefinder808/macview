@@ -129,7 +129,7 @@ for the full layout.
   view that draws `image.representations.first` into its bounds. Under a
   magnified `NSScrollView`, AppKit backs only the visible rect, so a 4096pt SVG
   at 4000% peaks ~345 MB (rotated ~320 MB) — flat with zoom, proportional to the
-  window. Draw the **rep**: `NSImage.draw(in:)` there is blurry (1x cache). That
+  window. A live pinch is the costliest path: 484 MB transient peak, by hand. Draw the **rep**: `NSImage.draw(in:)` there is blurry (1x cache). That
   backing was measured on **macOS 27.2 only**, so `zoomCeiling(for:)` keeps the
   old 32 MP pixel budget on macOS 14–26 behind `#available(macOS 27, *)`. To
   lift it, measure there first. When testing zoom on vectors, run a watchdog

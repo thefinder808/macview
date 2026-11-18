@@ -82,7 +82,9 @@ Utilities/  Color+Hex / Palette, NSImage+Rotation, NSImage+Vector (SVG helpers)
   1728×1085 window peaked ~445 MB, so the cost follows the window, not the
   zoom). SVGs using blur, turbulence, masks, patterns, group opacity, blend
   modes, clip paths and embedded images were ramped the same way and all stay
-  flat with zoom. Two rules keep it that way:
+  flat with zoom. A live trackpad pinch to 4000% with panning (hand-driven, same
+  4096pt SVG, 1340×848 window) peaked at 484 MB — the highest figure seen, and
+  transient: it settled back to ~170 MB. Two rules keep it that way:
   draw the **rep**, not the `NSImage` (`NSImage.draw` goes through the image's
   bitmap cache and comes out blurry), and never put a vector back in an
   `NSImageView`. A `CATiledLayer` was also measured: sharp, but its tile cache
