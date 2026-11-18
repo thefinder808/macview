@@ -8,12 +8,14 @@ canvas, where precise zoom/pan and large-image handling matter.
 ## Layers
 
 ```
-App/        MacViewApp (@main, Window + menu commands), AppDelegate,
+App/        Main (@main: runs a VectorProbe child launch, else starts the app),
+            MacViewApp (Window + menu commands), AppDelegate,
             SettingsManager, WindowAccessor (dark chrome + fullscreen + frame autosave),
             UpdaterService (Sparkle wrapper: check-for-updates + 4012 TCC alert)
 Models/     ImageInfo (overlay metadata)
 ViewModels/ ViewerModel — the single source of truth for the session
 Services/   FolderScanner, ImageLoader (actor), Thumbnailer (actor), MetadataReader,
+            VectorProbe (draws SVGs in a memory-limited child process first),
             FileActions (trash), DefaultViewer (register as default image viewer)
 Views/      ContentView (ZStack), ImageCanvas (NSViewRepresentable + canvas),
             ViewerToolbar, Filmstrip, InfoOverlay, NavChevrons, SettingsView
@@ -56,8 +58,9 @@ Utilities/  Color+Hex / Palette, NSImage+Rotation, NSImage+Vector (SVG helpers)
 - **SVG rides on AppKit, not ImageIO.** ImageIO has no SVG decoder
   (`CGImageSourceCreateThumbnailAtIndex` and the properties call both return nil),
   but `NSImage(contentsOf:)` loads SVG as a vector rep. So the canvas needed
-  nothing, and the ImageIO-based services fall back: `Thumbnailer` draws the
-  `NSImage` into a ≤200px bitmap (`NSImage.rasterized(maxPixel:)`), and
+  nothing, and the ImageIO-based services fall back: `Thumbnailer` has the
+  `NSImage` drawn into a ≤200px bitmap (`NSImage.rasterized(maxPixel:)`) in a
+  child process (`VectorProbe`, below), and
   `MetadataReader` reports the `NSImage`'s nominal size as the dimensions.
   `NSImage.isVector` (first rep reports no pixel size) is the one test the canvas
   and rotation use. See `Utilities/NSImage+Vector.swift`.
@@ -90,13 +93,50 @@ Utilities/  Color+Hex / Palette, NSImage+Rotation, NSImage+Vector (SVG helpers)
   `NSImageView`. A `CATiledLayer` was also measured: sharp, but its tile cache
   climbed to ~660 MB while panning and it needs off-main drawing.
 
-- **Known gap: SVG filter regions.** AppKit rasterizes a `<filter>`'s region at
-  the image's nominal size whatever the output size, so the cost is paid on
-  open — even for a 200px thumbnail — and does not depend on zoom or on which
-  view draws it. On a 4096pt SVG a 150% region peaks ~2.4 GB in the canvas, a
-  300% region ~2.4 GB in the thumbnailer, and a 2100% region passes 3 GB in
-  both — so one such file in a folder can take the app down through the
-  filmstrip. Not mitigated yet (`clampVectorSize` only limits the base size).
+- **Vectors are drawn in a child process first (`VectorProbe`).** AppKit's SVG
+  renderer allocates a buffer for every filtered or masked element, sized by
+  that element's bounding box × the filter region, in **viewBox units with
+  transforms applied** — about 36 bytes per pixel, paid on every draw whatever
+  the output size (a 200px thumbnail costs what the canvas costs). The declared
+  `width`, `NSImage.size` and the rep's size change nothing, so
+  `clampVectorSize` cannot bound it. Measured on macOS 27.2 (peak footprint,
+  1024-unit viewBox unless noted): a full-canvas blur with the default region
+  135 MB, at a 2048 viewBox 306 MB, at 4096 976 MB; a 300% region 424 MB; and
+  with the *default* region, `transform="scale(100)"`, a
+  `<rect width="1000000">`, or a `<mask>` on a huge element (no filter at all)
+  each pass 3 GB in 0.2 s. The sample that prompted this (4096 viewBox, 2100%
+  region) passes 3 GB in 0.4 s. Loading without drawing costs 3 MB.
+
+  No scan of the file can bound that: the cost can come from a transform or an
+  element's size rather than any filter attribute, CSS `filter:` works, and a
+  file declared `encoding="UTF-7"` renders while hiding the word "filter" from
+  its bytes. So MacView measures instead. `VectorProbe` re-runs the app's own
+  executable with `--probe-vector <path> <maxPixel>` (`Main` handles the flag
+  before SwiftUI starts); the child loads the file, draws the thumbnail, writes
+  it to stdout as PNG and exits, while a watchdog thread `_exit`s it past
+  512 MB of footprint or 5 s. `Thumbnailer` uses that PNG as the thumbnail,
+  and `ImageLoader.decode` returns nil for a vector that didn't pass (verdicts
+  are cached per URL + modification date), so a refused file is never drawn
+  in-process: blank filmstrip cell, and the canvas shows "This image needs too
+  much memory or time to display." `MetadataReader` only loads, never draws, so it is
+  unchanged.
+
+  Measured in the dev build on a folder holding three hostile SVGs: peak
+  footprint 32 MB when launched straight onto a hostile file and paging across
+  the others; 448–507 MB once a legitimate 2048-viewBox, 150%-region SVG is on
+  screen (that file alone costs 425 MB). The child itself overshoots its limit
+  briefly (up to ~700 MB on the worst file) before the 5 ms watchdog catches it.
+  A file just under the limit (501 MB in the child) peaked at 521 MB in a
+  canvas spike ramped from 18% to 4000% with pans, rotated or not, so a pass at
+  thumbnail size holds at any zoom. That equivalence, like the visible-rect
+  backing it relies on, was measured on **macOS 27.2 only**; on macOS 14–26 the
+  zoom cap below still applies to vectors.
+  The costs: ~70–100 ms per SVG thumbnail (a process launch; 30 icons took 2.0 s), the
+  same once per SVG on the paging/prefetch path when no thumbnail has probed it
+  yet (filmstrip hidden), and a legitimate
+  SVG whose filters cover more than roughly 12 MP — e.g. a full-canvas blur on
+  a viewBox larger than about 2,700 units — is refused. Raising `memoryLimit`
+  trades that against the app's peak one for one.
 
 - **The zoom cap survives only where that is unmeasured.** `zoomCeiling(for:)`
   returns the plain 4000% ceiling for bitmaps, and for vectors on macOS 27+. The

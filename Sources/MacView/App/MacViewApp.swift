@@ -1,6 +1,6 @@
 import SwiftUI
 
-@main
+// Not `@main`: `Main` runs first so a `VectorProbe` child launch never starts the app.
 struct MacViewApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var model = ViewerModel()

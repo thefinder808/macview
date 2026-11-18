@@ -23,9 +23,12 @@ actor ImageLoader {
     }
 
     /// The one place full images are decoded, so every image the canvas sees
-    /// has a sane size (see `clampVectorSize`).
+    /// has a sane size (see `clampVectorSize`) and, if it's a vector, has been
+    /// drawn once in a child process without running away (see `VectorProbe`).
+    /// Loading alone is cheap; it's the drawing that a hostile SVG makes costly.
     private func decode(_ url: URL) -> NSImage? {
         guard let image = NSImage(contentsOf: url) else { return nil }
+        if image.isVector, !VectorProbe.isSafe(url) { return nil }
         image.clampVectorSize()
         return image
     }
